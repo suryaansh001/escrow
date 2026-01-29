@@ -16,3 +16,10 @@ this document explains risk based decision making stuff in financial systems. it
 
 ---
 
+### Rewarding Honesty in Blockchain E-Commerce 
+
+**Link:** https://jbba.scholasticahq.com/article/87797-rewarding-honesty-an-incentive-mechanism-to-promote-trust-in-blockchain-based-e-commerce/attachment/180075.pdf?utm_source=chatgpt.com
+
+**Summary**
+Rewarding Honesty in Blockchain-Based E-Commerce (Lee et al., 2023) proposes a token-based incentive mechanism where buyers and sellers receive cryptographic rewards for honest behavior, making honesty the most profitable strategy.
+
