@@ -23,3 +23,13 @@ this document explains risk based decision making stuff in financial systems. it
 **Summary**
 Rewarding Honesty in Blockchain-Based E-Commerce (Lee et al., 2023) proposes a token-based incentive mechanism where buyers and sellers receive cryptographic rewards for honest behavior, making honesty the most profitable strategy.
 
+---
+
+### REPUTABLE - A Decentralized Reputation System for Blockchain-based Ecosystems
+
+**Link:** https://www.researchgate.net/publication/362282653_REPUTABLE_-_A_Decentralized_Reputation_System_for_Blockchain-based_Ecosystems
+
+**Summary**
+REPUTABLE presents a hybrid on-chain/off-chain blockchain reputation system that preserves privacy and integrity of user feedback by using encrypted off-chain input and on-chain verified aggregated reputation scores.
+
+---
