@@ -44,3 +44,11 @@ The paper defines key characteristics of blockchain and examines how consensus m
 
 --- 
 
+### Understanding Escrow: Protecting Parties in Financial Transactions
+
+**Link:** https://www.investopedia.com/terms/e/escrow.asp
+
+**Summary**
+The article explains that **escrow** is a financial arrangement where a **neutral third party holds money, assets, or documents** on behalf of two transacting parties and **releases them only when all contractual conditions are met**, which protects both sides from fraud or non-fulfillment of obligations. It also notes **risks and drawbacks**: escrow services can charge **additional fees**, escrow accounts (e.g., for mortgage taxes and insurance) may lead to **higher monthly payments** and thus requiring future adjustments.
+
+--- 
