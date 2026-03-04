@@ -1,0 +1,15 @@
+.env
+node_modules
+dist
+coverage
+*.log
+.DS_Store
+.idea
+.vscode
+*.suo
+.agent
+*.pid
+*.seed
+*.pid.lock
+*.log
+*.gz
