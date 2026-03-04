@@ -1,0 +1,457 @@
+-- ============================================================
+-- ADVANCED ADAPTIVE RISK-BASED ESCROW SYSTEM
+-- PostgreSQL + TimescaleDB Schema
+-- ============================================================
+
+-- Enable TimescaleDB extension
+CREATE EXTENSION IF NOT EXISTS timescaledb;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ============================================================
+-- ENUMS
+-- ============================================================
+
+CREATE TYPE user_status AS ENUM ('active', 'suspended', 'frozen', 'banned');
+CREATE TYPE kyc_status AS ENUM ('pending', 'submitted', 'verified', 'rejected');
+CREATE TYPE escrow_state AS ENUM ('created', 'funded', 'locked', 'released', 'disputed', 'cancelled', 'refunded');
+CREATE TYPE transaction_type AS ENUM ('deposit', 'withdrawal', 'escrow_lock', 'escrow_release', 'escrow_refund', 'referral_bonus');
+CREATE TYPE transaction_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'reversed');
+CREATE TYPE suspicion_action AS ENUM ('normal', 'monitoring', 'partial_restriction', 'immediate_freeze');
+CREATE TYPE dispute_status AS ENUM ('open', 'under_review', 'resolved_buyer', 'resolved_seller', 'escalated');
+CREATE TYPE audit_event_type AS ENUM (
+  'user_created', 'kyc_verified', 'bank_verified',
+  'reliability_updated', 'referral_applied',
+  'escrow_created', 'escrow_funded', 'escrow_locked',
+  'escrow_released', 'escrow_disputed', 'escrow_cancelled',
+  'transaction_flagged', 'user_frozen', 'user_suspended',
+  'lock_duration_computed', 'suspicion_score_computed'
+);
+
+-- ============================================================
+-- 1. USERS
+-- ============================================================
+
+CREATE TABLE users (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email               VARCHAR(255) UNIQUE NOT NULL,
+  phone               VARCHAR(20) UNIQUE,
+  password_hash       TEXT NOT NULL,
+  full_name           VARCHAR(255),
+  status              user_status NOT NULL DEFAULT 'active',
+
+  -- Verification flags
+  kyc_status          kyc_status NOT NULL DEFAULT 'pending',
+  kyc_verified_at     TIMESTAMPTZ,
+  bank_verified       BOOLEAN NOT NULL DEFAULT FALSE,
+  bank_verified_at    TIMESTAMPTZ,
+
+  -- Base reliability is set to 0.5 once kyc + bank both verified
+  -- Managed by application logic, stored here for quick access
+  reliability_score   DECIMAL(5,4) NOT NULL DEFAULT 0.0
+                        CHECK (reliability_score >= 0 AND reliability_score <= 1),
+
+  -- Cold start phase flag — lifted after N successful transactions
+  is_restricted_phase BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- Metadata
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_active_at      TIMESTAMPTZ
+);
+
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_reliability ON users(reliability_score);
+
+-- ============================================================
+-- 2. KYC DOCUMENTS
+-- ============================================================
+
+CREATE TABLE kyc_documents (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  doc_type        VARCHAR(50) NOT NULL,        -- passport, national_id, driving_license
+  doc_reference   TEXT,                        -- reference from KYC provider (e.g. Onfido, Sumsub)
+  provider        VARCHAR(100),                -- which KYC provider
+  status          kyc_status NOT NULL DEFAULT 'pending',
+  verified_at     TIMESTAMPTZ,
+  rejection_reason TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_kyc_user ON kyc_documents(user_id);
+
+-- ============================================================
+-- 3. BANK ACCOUNTS
+-- ============================================================
+
+CREATE TABLE bank_accounts (
+  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id           UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  account_number    TEXT NOT NULL,             -- encrypted at app layer
+  routing_number    TEXT,
+  bank_name         VARCHAR(255),
+  is_verified       BOOLEAN NOT NULL DEFAULT FALSE,
+  verified_at       TIMESTAMPTZ,
+  is_primary        BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_bank_user ON bank_accounts(user_id);
+
+-- ============================================================
+-- 4. RELIABILITY SCORE HISTORY
+-- Every change to R is logged here. Source of truth for audits.
+-- ============================================================
+
+CREATE TABLE reliability_history (
+  id              BIGSERIAL PRIMARY KEY,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+  r_previous      DECIMAL(5,4) NOT NULL,
+  r_new           DECIMAL(5,4) NOT NULL,
+  delta           DECIMAL(6,4) GENERATED ALWAYS AS (r_new - r_previous) STORED,
+
+  -- What caused this change
+  change_reason   VARCHAR(100) NOT NULL,  -- 'kyc_verified', 'referral_transfer', 'txn_success', 'anomaly_penalty', 'inactivity_decay'
+  alpha           DECIMAL(6,4),           -- reward coefficient used (if applicable)
+  beta            DECIMAL(6,4),           -- penalty coefficient used (if applicable)
+  decay_lambda    DECIMAL(8,6),           -- decay lambda used (if applicable)
+
+  triggered_by_txn_id UUID,              -- which transaction triggered this (nullable)
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_rel_history_user ON reliability_history(user_id, created_at DESC);
+
+-- Convert to TimescaleDB hypertable for efficient time queries
+SELECT create_hypertable('reliability_history', 'created_at', if_not_exists => TRUE);
+
+-- ============================================================
+-- 5. REFERRALS
+-- One row per referrer-referee pair. No circular. No stacking.
+-- ============================================================
+
+CREATE TABLE referrals (
+  id                      UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  referrer_id             UUID NOT NULL REFERENCES users(id),
+  referee_id              UUID NOT NULL REFERENCES users(id),
+
+  -- R of referrer at the time of referral (snapshot, not live)
+  referrer_r_at_referral  DECIMAL(5,4) NOT NULL,
+
+  -- Computed: R_new = 0.5 + 0.25 * referrer_r_at_referral
+  transfer_amount         DECIMAL(5,4) NOT NULL,
+  transfer_applied        BOOLEAN NOT NULL DEFAULT FALSE,
+  transfer_applied_at     TIMESTAMPTZ,
+
+  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- Constraints: one referral per pair, no self-referral
+  CONSTRAINT unique_referral_pair UNIQUE (referrer_id, referee_id),
+  CONSTRAINT no_self_referral CHECK (referrer_id != referee_id)
+);
+
+CREATE INDEX idx_referrals_referee ON referrals(referee_id);
+CREATE INDEX idx_referrals_referrer ON referrals(referrer_id);
+
+-- ============================================================
+-- 6. ESCROW RECORDS
+-- Core state machine: created → funded → locked → released/disputed
+-- ============================================================
+
+CREATE TABLE escrows (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  buyer_id            UUID NOT NULL REFERENCES users(id),
+  seller_id           UUID NOT NULL REFERENCES users(id),
+
+  amount              DECIMAL(18,8) NOT NULL CHECK (amount > 0),
+  currency            VARCHAR(10) NOT NULL DEFAULT 'USD',
+
+  state               escrow_state NOT NULL DEFAULT 'created',
+
+  -- Lock duration computed from T_lock = f(R, M, F)
+  lock_duration_hours INTEGER,                 -- computed at funding time
+  locked_at           TIMESTAMPTZ,
+  unlock_at           TIMESTAMPTZ,             -- locked_at + lock_duration_hours
+  released_at         TIMESTAMPTZ,
+
+  -- Reliability and suspicion snapshots at time of creation
+  buyer_r_at_creation   DECIMAL(5,4),
+  seller_r_at_creation  DECIMAL(5,4),
+  suspicion_f_at_lock   DECIMAL(4,3),          -- F score that influenced lock duration
+
+  -- Blockchain
+  on_chain             BOOLEAN NOT NULL DEFAULT FALSE,
+  contract_address     VARCHAR(255),
+  chain_id             INTEGER,
+  tx_hash_fund         VARCHAR(255),           -- funding transaction hash
+  tx_hash_release      VARCHAR(255),           -- release transaction hash
+
+  -- Description / reference
+  description          TEXT,
+  reference_id         VARCHAR(255),           -- external reference (order ID, etc.)
+
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT different_parties CHECK (buyer_id != seller_id)
+);
+
+CREATE INDEX idx_escrow_buyer ON escrows(buyer_id);
+CREATE INDEX idx_escrow_seller ON escrows(seller_id);
+CREATE INDEX idx_escrow_state ON escrows(state);
+CREATE INDEX idx_escrow_unlock ON escrows(unlock_at) WHERE state = 'locked';
+
+-- ============================================================
+-- 7. ESCROW STATE TRANSITIONS (full audit trail)
+-- ============================================================
+
+CREATE TABLE escrow_transitions (
+  id            BIGSERIAL PRIMARY KEY,
+  escrow_id     UUID NOT NULL REFERENCES escrows(id) ON DELETE CASCADE,
+  from_state    escrow_state,
+  to_state      escrow_state NOT NULL,
+  triggered_by  UUID REFERENCES users(id),    -- which user triggered it (nullable for system)
+  reason        TEXT,
+  metadata      JSONB,                         -- any extra context
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_escrow_transitions ON escrow_transitions(escrow_id, created_at DESC);
+
+-- ============================================================
+-- 8. TRANSACTIONS
+-- Every money movement. TimescaleDB hypertable.
+-- ============================================================
+
+CREATE TABLE transactions (
+  id              UUID NOT NULL DEFAULT uuid_generate_v4(),
+  user_id         UUID NOT NULL REFERENCES users(id),
+  escrow_id       UUID REFERENCES escrows(id),
+
+  type            transaction_type NOT NULL,
+  status          transaction_status NOT NULL DEFAULT 'pending',
+
+  amount          DECIMAL(18,8) NOT NULL CHECK (amount > 0),
+  currency        VARCHAR(10) NOT NULL DEFAULT 'USD',
+
+  -- Money normalization factor (stored for audit)
+  -- MoneyFactor = M / (M + P + 1)
+  money_factor    DECIMAL(8,6),
+  platform_exposure_at_txn DECIMAL(18,8),     -- P at time of transaction
+
+  -- Flags
+  is_flagged      BOOLEAN NOT NULL DEFAULT FALSE,
+  flag_reason     TEXT,
+
+  idempotency_key VARCHAR(255) UNIQUE,        -- prevent duplicate processing
+  external_ref    VARCHAR(255),               -- blockchain tx hash or bank ref
+
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  PRIMARY KEY (id, created_at)                -- composite for hypertable
+);
+
+SELECT create_hypertable('transactions', 'created_at', if_not_exists => TRUE);
+
+CREATE INDEX idx_txn_user_time ON transactions(user_id, created_at DESC);
+CREATE INDEX idx_txn_escrow ON transactions(escrow_id);
+CREATE INDEX idx_txn_flagged ON transactions(is_flagged) WHERE is_flagged = TRUE;
+
+-- ============================================================
+-- 9. TRANSACTION ANOMALY / SUSPICION LOG
+-- One row per suspicion evaluation
+-- ============================================================
+
+CREATE TABLE suspicion_logs (
+  id                  BIGSERIAL PRIMARY KEY,
+  user_id             UUID NOT NULL REFERENCES users(id),
+  transaction_id      UUID,                   -- which transaction triggered evaluation
+
+  -- Individual detector outputs
+  z_score             DECIMAL(8,4),
+  z_score_flag        BOOLEAN NOT NULL DEFAULT FALSE,
+
+  cusum_value         DECIMAL(10,4),          -- current CUSUM accumulator value
+  cusum_flag          BOOLEAN NOT NULL DEFAULT FALSE,
+
+  surge_ratio         DECIMAL(8,4),
+  surge_flag          BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- Aggregated F score = (z_flag + cusum_flag + surge_flag) / 3
+  f_score             DECIMAL(4,3) NOT NULL
+                        CHECK (f_score >= 0 AND f_score <= 1),
+
+  -- Mapped action
+  action              suspicion_action NOT NULL,
+
+  -- Window data snapshots (for reproducibility)
+  window_mean         DECIMAL(18,8),
+  window_stddev       DECIMAL(18,8),
+  avg_daily_txn       DECIMAL(18,8),
+  txn_24h_volume      DECIMAL(18,8),
+
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+SELECT create_hypertable('suspicion_logs', 'created_at', if_not_exists => TRUE);
+
+CREATE INDEX idx_suspicion_user ON suspicion_logs(user_id, created_at DESC);
+CREATE INDEX idx_suspicion_action ON suspicion_logs(action);
+
+-- ============================================================
+-- 10. CUSUM STATE (per user, maintained in DB or Redis)
+-- Persistent state for the CUSUM detector
+-- ============================================================
+
+CREATE TABLE cusum_state (
+  user_id         UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  s_pos           DECIMAL(12,6) NOT NULL DEFAULT 0,   -- positive CUSUM accumulator
+  s_neg           DECIMAL(12,6) NOT NULL DEFAULT 0,   -- negative CUSUM accumulator
+  k               DECIMAL(10,6),                       -- k = 0.5σ at last computation
+  h               DECIMAL(10,6),                       -- h = 5σ at last computation
+  last_updated    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 11. LOCK DURATION COMPUTATION LOG
+-- Every T_lock computation stored for auditability
+-- ============================================================
+
+CREATE TABLE lock_duration_logs (
+  id              BIGSERIAL PRIMARY KEY,
+  escrow_id       UUID NOT NULL REFERENCES escrows(id),
+  user_id         UUID NOT NULL REFERENCES users(id),  -- whose R was used
+
+  -- Inputs to the formula
+  r_input         DECIMAL(5,4) NOT NULL,
+  m_input         DECIMAL(18,8) NOT NULL,
+  f_input         DECIMAL(4,3) NOT NULL,
+  money_factor    DECIMAL(8,6),
+
+  -- Result
+  lock_hours      INTEGER NOT NULL,
+
+  -- Formula version (useful when you tune coefficients)
+  formula_version VARCHAR(20) NOT NULL DEFAULT 'v1',
+
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 12. DISPUTES
+-- ============================================================
+
+CREATE TABLE disputes (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  escrow_id       UUID NOT NULL REFERENCES escrows(id),
+  raised_by       UUID NOT NULL REFERENCES users(id),
+  against         UUID NOT NULL REFERENCES users(id),
+
+  status          dispute_status NOT NULL DEFAULT 'open',
+  reason          TEXT NOT NULL,
+  evidence_urls   TEXT[],                     -- array of evidence file URLs
+  resolver_id     UUID REFERENCES users(id),  -- admin who resolved
+
+  resolved_in_favor_of UUID REFERENCES users(id),
+  resolution_notes TEXT,
+  resolved_at     TIMESTAMPTZ,
+
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_disputes_escrow ON disputes(escrow_id);
+CREATE INDEX idx_disputes_status ON disputes(status);
+
+-- ============================================================
+-- 13. USER WITHDRAWAL LIMITS (Dynamic Cap)
+-- Cap = k * R * Exposure — stored per user, recomputed on R change
+-- ============================================================
+
+CREATE TABLE withdrawal_limits (
+  user_id             UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  daily_cap           DECIMAL(18,8) NOT NULL DEFAULT 0,
+  monthly_cap         DECIMAL(18,8) NOT NULL DEFAULT 0,
+  daily_used          DECIMAL(18,8) NOT NULL DEFAULT 0,
+  monthly_used        DECIMAL(18,8) NOT NULL DEFAULT 0,
+  cap_reset_daily_at  TIMESTAMPTZ,
+  cap_reset_monthly_at TIMESTAMPTZ,
+  last_computed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 14. AUDIT LOG (Immutable append-only log)
+-- ============================================================
+
+CREATE TABLE audit_logs (
+  id              BIGSERIAL PRIMARY KEY,
+  event_type      audit_event_type NOT NULL,
+  user_id         UUID REFERENCES users(id),
+  escrow_id       UUID REFERENCES escrows(id),
+  transaction_id  UUID,
+  actor_id        UUID REFERENCES users(id),  -- who performed the action (admin or user)
+  ip_address      INET,
+  payload         JSONB,                       -- full snapshot of what changed
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+SELECT create_hypertable('audit_logs', 'created_at', if_not_exists => TRUE);
+
+CREATE INDEX idx_audit_user ON audit_logs(user_id, created_at DESC);
+CREATE INDEX idx_audit_event ON audit_logs(event_type, created_at DESC);
+
+-- ============================================================
+-- 15. SYSTEM CONFIG (formula coefficients, thresholds)
+-- Allows tuning without code deploys
+-- ============================================================
+
+CREATE TABLE system_config (
+  key             VARCHAR(100) PRIMARY KEY,
+  value           TEXT NOT NULL,
+  description     TEXT,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_by      UUID REFERENCES users(id)
+);
+
+-- Seed default values
+INSERT INTO system_config (key, value, description) VALUES
+  ('r_base',                    '0.5',    'Base reliability after KYC + bank verification'),
+  ('referral_transfer_weight',  '0.25',   'Weight in R_new = 0.5 + weight * R_referrer'),
+  ('z_score_threshold',         '2.5',    'Z-score threshold for rolling window detector'),
+  ('cusum_k_multiplier',        '0.5',    'CUSUM k = multiplier * sigma'),
+  ('cusum_h_multiplier',        '5.0',    'CUSUM h = multiplier * sigma'),
+  ('surge_ratio_threshold',     '3.0',    'Surge = Txn_24h / AvgDaily, flag if above this'),
+  ('reward_alpha',              '0.02',   'Alpha in R_t+1 = R_t + alpha*g(success)'),
+  ('penalty_beta',              '0.05',   'Beta in R_t+1 = R_t - beta*h(anomaly)'),
+  ('decay_lambda',              '0.001',  'Lambda in R_t = R_{t-1} * e^(-lambda * inactivity_days)'),
+  ('withdrawal_cap_k',          '1.0',    'k in Cap = k * R * Exposure'),
+  ('lock_base_days',            '3',      'Base lock days in T_lock formula'),
+  ('formula_version',           'v1',     'Current lock duration formula version');
+
+-- ============================================================
+-- HELPER: updated_at auto-update trigger
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_users_updated_at
+  BEFORE UPDATE ON users
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_escrows_updated_at
+  BEFORE UPDATE ON escrows
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER trg_disputes_updated_at
+  BEFORE UPDATE ON disputes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
