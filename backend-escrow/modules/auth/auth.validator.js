@@ -32,8 +32,8 @@ async function register(req, res) {
         
         // Create user
         const newUser = await sql`
-            INSERT INTO users (email, password) 
-            VALUES (${body.email}, ${hashedPassword}) 
+            INSERT INTO users (email, password_hash, full_name, phone) 
+            VALUES (${body.email}, ${hashedPassword}, ${body.name || null}, ${body.phone || null}) 
             RETURNING id, email
         `;
         
@@ -66,7 +66,7 @@ async function login(req, res) {
         if (user.length === 0) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
-        const validPassword = await bcrypt.compare(body.password, user[0].password);
+        const validPassword = await bcrypt.compare(body.password, user[0].password_hash);
         if (!validPassword) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
@@ -88,11 +88,11 @@ async function otpgeneration(req, res) {
         
         // Insert or update OTP in otp_requests table
         await sql`
-            INSERT INTO otp_requests (email, phone_number, otp, is_used) 
+            INSERT INTO otp_requests (email, phone, otp, is_used) 
             VALUES (${body.email}, ${body.phone_number || null}, ${otp}, false) 
             ON CONFLICT (email) DO UPDATE SET 
               otp = EXCLUDED.otp,
-              phone_number = EXCLUDED.phone_number,
+              phone = EXCLUDED.phone,
               is_used = false,
               created_at = CURRENT_TIMESTAMP,
               expires_at = (CURRENT_TIMESTAMP + INTERVAL '10 minutes')
