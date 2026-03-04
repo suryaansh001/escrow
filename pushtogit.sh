@@ -3,4 +3,4 @@ git add .
 read -p "Enter commit message: " commit_message
 git commit -m "$commit_message"
 echo "Code committed successfully!"
-git push 
+git push --force 
