@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import authRoutes from '../modules/auth/auth.routes.js';
 import dashboardRoutes from '../modules/users/dashboard.routes.js';
+import disputeRoutes from '../modules/users/disputes.routes.js';
+import escrowRoutes from '../modules/escrow/escrow.routes.js';
 import { authMiddleware } from '../modules/auth/auth.middleware.js';
 
 dotenv.config();
@@ -33,7 +35,9 @@ app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use('/auth', authRoutes);
-app.use('/dashboard', authMiddleware, dashboardRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/escrow', escrowRoutes);
+app.use('/disputes', disputeRoutes);
 
 app.get("/healthz", (req, res) => {
     res.status(200).json({ status: "ok" });
