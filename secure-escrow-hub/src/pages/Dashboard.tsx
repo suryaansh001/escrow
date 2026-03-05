@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -8,24 +9,13 @@ import {
   Wallet,
   Activity,
   Eye,
+  AlertCircle,
+  Loader,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-
-const overviewCards = [
-  { label: "Total Transactions", value: "142", change: "+12%", up: true, icon: TrendingUp },
-  { label: "Active Escrows", value: "8", change: "+3", up: true, icon: Activity },
-  { label: "Wallet Balance", value: "₹24,500", change: "+₹5,200", up: true, icon: Wallet },
-  { label: "Risk Score", value: "Low", change: "23/100", up: false, icon: Shield, isRisk: true },
-];
-
-const transactions = [
-  { id: "TXN-001", counterparty: "Priya Sharma", amount: "₹15,000", status: "Funded", risk: "Low" },
-  { id: "TXN-002", counterparty: "Rahul Verma", amount: "₹42,000", status: "Pending", risk: "Medium" },
-  { id: "TXN-003", counterparty: "Sneha Patel", amount: "₹8,500", status: "Released", risk: "Low" },
-  { id: "TXN-004", counterparty: "Vikram Singh", amount: "₹1,20,000", status: "Dispute", risk: "High" },
-  { id: "TXN-005", counterparty: "Anita Desai", amount: "₹32,000", status: "Funded", risk: "Low" },
-];
+import { dashboardApi } from "@/lib/api";
 
 const statusColors: Record<string, string> = {
   Funded: "bg-primary/10 text-primary",
@@ -41,8 +31,77 @@ const riskColors: Record<string, string> = {
 };
 
 const Dashboard = () => {
-  return (
-    <DashboardLayout>
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await dashboardApi.getDashboardData();
+        if (response.success && response.data) {
+          setDashboardData(response.data);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-6xl mx-auto flex items-center justify-center h-96">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-6xl mx-auto">
+          <Alert className="bg-destructive/10 border-destructive/20">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <AlertDescription className="text-destructive">{error}</AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!dashboardData) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-6xl mx-auto">
+          <Alert className="bg-warning/10 border-warning/20">
+            <AlertCircle className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning">No dashboard data available</AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const {
+    metrics,
+    riskProfile,
+    recentTransactions,
+  } = dashboardData;
+
+  const overviewCards = [
+    { label: "Total Transactions", value: metrics.totalTransactions.toString(), change: "+12%", up: true, icon: TrendingUp },
+    { label: "Active Escrows", value: metrics.activeEscrows.toString(), change: "+3", up: true, icon: Activity },
+    { label: "Wallet Balance", value: `₹${metrics.walletBalance.toLocaleString()}`, change: "+₹5,200", up: true, icon: Wallet },
+    { label: "Risk Score", value: riskProfile.level, change: `${riskProfile.score}/100`, up: false, icon: Shield, isRisk: true },
+  ];
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold font-display text-foreground">Dashboard</h1>
@@ -86,18 +145,18 @@ const Dashboard = () => {
                 <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
                 <circle
                   cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--accent))" strokeWidth="6"
-                  strokeDasharray={`${(23 / 100) * 213.6} 213.6`}
+                  strokeDasharray={`${(riskProfile.score / 100) * 213.6} 213.6`}
                   strokeLinecap="round"
                   className="transition-all duration-1000"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold font-display text-foreground">23</span>
+                <span className="text-lg font-bold font-display text-foreground">{riskProfile.score}</span>
               </div>
             </div>
             <div>
-              <p className="text-sm font-medium text-accent">Low Risk</p>
-              <p className="text-xs text-muted-foreground mt-1">Your account has a strong trust score based on verified KYC and transaction history.</p>
+              <p className="text-sm font-medium text-accent">{riskProfile.level} Risk</p>
+              <p className="text-xs text-muted-foreground mt-1">{riskProfile.description}</p>
             </div>
           </div>
         </motion.div>
@@ -125,13 +184,13 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {transactions.map((tx) => (
+                {recentTransactions.map((tx: any) => (
                   <tr key={tx.id} className="hover:bg-muted/50 transition-colors">
                     <td className="px-6 py-4 text-sm font-mono text-foreground">{tx.id}</td>
                     <td className="px-6 py-4 text-sm text-foreground">{tx.counterparty}</td>
-                    <td className="px-6 py-4 text-sm font-semibold text-foreground">{tx.amount}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-foreground">₹{tx.amount.toLocaleString()}</td>
                     <td className="px-6 py-4">
-                      <span className={`status-badge ${statusColors[tx.status]}`}>{tx.status}</span>
+                      <span className={`status-badge ${statusColors[tx.state] || 'bg-muted text-muted-foreground'}`}>{tx.state}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`status-badge ${riskColors[tx.risk]}`}>{tx.risk}</span>

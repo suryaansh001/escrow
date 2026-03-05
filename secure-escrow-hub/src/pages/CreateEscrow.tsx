@@ -1,23 +1,69 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Upload, Shield, Zap } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Upload, Shield, Zap, AlertCircle, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { escrowApi } from "@/lib/api";
 
 const steps = ["Basic Info", "Risk Settings", "Confirm & Pay"];
 
 const CreateEscrow = () => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  // Form state
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("inr");
+  const [counterpartyEmail, setCounterpartyEmail] = useState("");
+  const [transactionType, setTransactionType] = useState("service");
   const [adaptiveRisk, setAdaptiveRisk] = useState(true);
   const [milestones, setMilestones] = useState(false);
 
   const next = () => setCurrentStep((s) => Math.min(s + 1, 2));
   const prev = () => setCurrentStep((s) => Math.max(s - 1, 0));
+
+  const handleSubmit = async () => {
+    if (!title || !description || !amount || !counterpartyEmail) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // For now, we'll use a placeholder seller ID - in production, you'd look up the seller by email
+      const response = await escrowApi.createEscrow({
+        seller_id: "placeholder-seller-id", // This should be fetched based on counterpartyEmail
+        amount: parseFloat(amount),
+        description,
+        transaction_type: transactionType,
+        adaptive_risk: adaptiveRisk,
+        milestone_based: milestones,
+      });
+
+      if (response.success) {
+        setSuccess("Escrow created successfully!");
+        setTimeout(() => navigate("/dashboard"), 1500);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create escrow");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -26,6 +72,20 @@ const CreateEscrow = () => {
           <h1 className="text-2xl font-bold font-display text-foreground">Create Escrow</h1>
           <p className="text-muted-foreground text-sm mt-1">Set up a new secure transaction</p>
         </div>
+
+        {/* Alerts */}
+        {error && (
+          <Alert className="mb-6 bg-destructive/10 border-destructive/20">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <AlertDescription className="text-destructive">{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <Alert className="mb-6 bg-accent/10 border-accent/20">
+            <Check className="h-4 w-4 text-accent" />
+            <AlertDescription className="text-accent">{success}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Progress */}
         <div className="flex items-center gap-2 mb-10">
@@ -57,20 +117,36 @@ const CreateEscrow = () => {
               <div className="card-fintech space-y-5">
                 <div>
                   <Label>Transaction Title</Label>
-                  <Input placeholder="e.g. Website Development Project" className="mt-1.5 rounded-xl" />
+                  <Input 
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Website Development Project" 
+                    className="mt-1.5 rounded-xl" 
+                  />
                 </div>
                 <div>
                   <Label>Description</Label>
-                  <Textarea placeholder="Describe the agreement terms..." className="mt-1.5 rounded-xl min-h-[100px]" />
+                  <Textarea 
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe the agreement terms..." 
+                    className="mt-1.5 rounded-xl min-h-[100px]" 
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Amount (₹)</Label>
-                    <Input type="number" placeholder="25000" className="mt-1.5 rounded-xl" />
+                    <Input 
+                      type="number" 
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="25000" 
+                      className="mt-1.5 rounded-xl" 
+                    />
                   </div>
                   <div>
                     <Label>Currency</Label>
-                    <Select defaultValue="inr">
+                    <Select value={currency} onValueChange={setCurrency}>
                       <SelectTrigger className="mt-1.5 rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
@@ -83,7 +159,12 @@ const CreateEscrow = () => {
                 </div>
                 <div>
                   <Label>Counterparty Email / Phone</Label>
-                  <Input placeholder="seller@example.com" className="mt-1.5 rounded-xl" />
+                  <Input 
+                    value={counterpartyEmail}
+                    onChange={(e) => setCounterpartyEmail(e.target.value)}
+                    placeholder="seller@example.com" 
+                    className="mt-1.5 rounded-xl" 
+                  />
                 </div>
               </div>
             )}
@@ -103,7 +184,7 @@ const CreateEscrow = () => {
 
                 <div>
                   <Label>Transaction Type</Label>
-                  <Select defaultValue="service">
+                  <Select value={transactionType} onValueChange={setTransactionType}>
                     <SelectTrigger className="mt-1.5 rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
@@ -143,11 +224,11 @@ const CreateEscrow = () => {
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Transaction Amount</span>
-                      <span className="font-semibold text-foreground">₹25,000</span>
+                      <span className="font-semibold text-foreground">₹{amount || '0'}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Escrow Fee (1.5%)</span>
-                      <span className="font-semibold text-foreground">₹375</span>
+                      <span className="font-semibold text-foreground">₹{amount ? (parseFloat(amount) * 0.015).toFixed(2) : '0'}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-border">
                       <span className="text-muted-foreground">Risk Score</span>
@@ -155,14 +236,27 @@ const CreateEscrow = () => {
                     </div>
                     <div className="flex justify-between py-2">
                       <span className="font-semibold text-foreground">Total</span>
-                      <span className="font-bold text-foreground text-lg">₹25,375</span>
+                      <span className="font-bold text-foreground text-lg">₹{amount ? (parseFloat(amount) + (parseFloat(amount) * 0.015)).toFixed(2) : '0'}</span>
                     </div>
                   </div>
                 </div>
 
-                <Button className="w-full rounded-xl h-12 text-base font-semibold">
-                  <Shield className="mr-2 h-4 w-4" />
-                  Confirm & Fund Escrow
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="w-full rounded-xl h-12 text-base font-semibold"
+                >
+                  {loading ? (
+                    <>
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Escrow...
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="mr-2 h-4 w-4" />
+                      Confirm & Fund Escrow
+                    </>
+                  )}
                 </Button>
               </div>
             )}

@@ -1,17 +1,68 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { MessageCircle, Upload, Clock, AlertTriangle, Shield, ArrowLeft } from "lucide-react";
+import { MessageCircle, Upload, Clock, AlertTriangle, Shield, ArrowLeft, Loader, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-
-const messages = [
-  { from: "buyer", text: "The delivered product doesn't match the agreed specifications.", time: "2:30 PM" },
-  { from: "seller", text: "I have shipped the exact product as described. Please check the packaging again.", time: "3:15 PM" },
-  { from: "admin", text: "Both parties please upload supporting evidence. Review in progress.", time: "4:00 PM" },
-];
+import { disputeApi } from "@/lib/api";
 
 const DisputePage = () => {
+  const { id } = useParams();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dispute, setDispute] = useState<any>(null);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const fetchDispute = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await disputeApi.getDisputeById(id);
+        if (response.success && response.dispute) {
+          setDispute(response.dispute);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to fetch dispute");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDispute();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-3xl mx-auto flex items-center justify-center h-96">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !dispute) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-3xl mx-auto">
+          <Alert className="bg-destructive/10 border-destructive/20">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <AlertDescription className="text-destructive">{error || "Dispute not found"}</AlertDescription>
+          </Alert>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const messages = [
+    { from: "buyer", text: dispute.reason, time: new Date(dispute.created_at).toLocaleTimeString() },
+  ];
+
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto">
@@ -20,10 +71,12 @@ const DisputePage = () => {
             <Link to="/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold font-display text-foreground">Dispute - TXN-004</h1>
-            <p className="text-muted-foreground text-sm">Vikram Singh vs. Arjun Mehta</p>
+            <h1 className="text-2xl font-bold font-display text-foreground">Dispute - {dispute.id.slice(0, 8)}</h1>
+            <p className="text-muted-foreground text-sm">Status: {dispute.status}</p>
           </div>
-          <span className="ml-auto status-badge bg-destructive/10 text-destructive">Under Review</span>
+          <span className={`ml-auto status-badge ${dispute.status === 'resolved' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'}`}>
+            {dispute.status === 'resolved' ? 'Resolved' : 'Under Review'}
+          </span>
         </div>
 
         {/* Timeline */}
