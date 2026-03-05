@@ -102,6 +102,9 @@ const Dashboard = () => {
     { label: "Wallet Balance", value: `₹${metrics.walletBalance.toLocaleString()}`, change: "+₹5,200", up: true, icon: Wallet },
     { label: "Risk Score", value: riskProfile.level, change: `${riskProfile.score}/100`, up: false, icon: Shield, isRisk: true },
   ];
+
+  return (
+    <DashboardLayout>
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold font-display text-foreground">Dashboard</h1>

@@ -3,13 +3,28 @@ import { sql } from '../../src/config/db.js';
 export async function createEscrow(req, res) {
     try {
         const userId = req.user.id;
-        const { seller_id, amount, description, transaction_type, adaptive_risk } = req.body;
+        const { seller_id, seller_email, amount, description, transaction_type, adaptive_risk } = req.body;
         
-        if (!seller_id || !amount) {
-            return res.status(400).json({ error: 'Seller ID and Amount are required' });
+        if (!amount) {
+            return res.status(400).json({ error: 'Amount is required' });
+        }
+
+        let finalSellerId = seller_id;
+
+        // If seller_email is provided, look up the seller user
+        if (!seller_id && seller_email) {
+            const sellerUser = await sql`SELECT id FROM users WHERE email = ${seller_email}`;
+            if (sellerUser.length === 0) {
+                return res.status(404).json({ error: 'Seller not found' });
+            }
+            finalSellerId = sellerUser[0].id;
         }
         
-        if (userId === seller_id) {
+        if (!finalSellerId) {
+            return res.status(400).json({ error: 'Seller ID or Email is required' });
+        }
+        
+        if (userId === finalSellerId) {
             return res.status(400).json({ error: 'Buyer and Seller cannot be the same' });
         }
 
@@ -19,7 +34,7 @@ export async function createEscrow(req, res) {
         
         const newEscrow = await sql`
             INSERT INTO escrows (buyer_id, seller_id, amount, description, state) 
-            VALUES (${userId}, ${seller_id}, ${amount}, ${description || null}, 'created') 
+            VALUES (${userId}, ${finalSellerId}, ${amount}, ${description || null}, 'created') 
             RETURNING *
         `;
         

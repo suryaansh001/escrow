@@ -31,9 +31,10 @@ async function getDashboardData(req, res) {
         `;
         const activeEscrows = activeEscrowsData[0].count;
         
+        // Calculate wallet balance from escrows as buyer
         const walletData = await sql`
-            SELECT COALESCE(SUM(amount), 0) as balance FROM wallet 
-            WHERE user_id = ${userId}
+            SELECT COALESCE(SUM(amount), 0) as balance FROM escrows 
+            WHERE buyer_id = ${userId} AND state = 'released'
         `;
         const walletBalance = walletData[0].balance || 0;
         

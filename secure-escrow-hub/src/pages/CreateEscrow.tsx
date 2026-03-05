@@ -44,9 +44,8 @@ const CreateEscrow = () => {
       setLoading(true);
       setError(null);
 
-      // For now, we'll use a placeholder seller ID - in production, you'd look up the seller by email
       const response = await escrowApi.createEscrow({
-        seller_id: "placeholder-seller-id", // This should be fetched based on counterpartyEmail
+        seller_email: counterpartyEmail,
         amount: parseFloat(amount),
         description,
         transaction_type: transactionType,
