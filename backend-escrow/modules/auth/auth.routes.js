@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, otpgeneration } from './auth.validator.js';
+import { register, login, otpgeneration } from './auth.controller.js';
 
 const router = express.Router();
 
