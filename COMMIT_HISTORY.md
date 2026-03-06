@@ -4,13 +4,6 @@ This document lists all commits in the repository with date-time, author, branch
 
 ---
 
-## Commit 1
-- **Date/Time:** 2026-03-06 18:21:49
-- **Author:** copilot-swe-agent[bot]
-- **Branch:** copilot/create-commit-list
-- **Message:** Initial plan
-
----
 
 ## Commit 2
 - **Date/Time:** 2026-03-06 10:22:51
