@@ -1,12 +1,86 @@
 import { motion } from "framer-motion";
 import { User, Shield, Landmark, Bell, Lock, Upload } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useToast } from "@/hooks/use-toast";
+import { api } from "@/lib/api";
 
 const SettingsPage = () => {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [fullName] = useState("Arjun Mehta"); // Read-only - from Aadhaar/PAN
+  const [email, setEmail] = useState("arjun@example.com");
+  const [phone, setPhone] = useState("+91 98765 43210");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpEmail, setOtpEmail] = useState("");
+  const [otp, setOtp] = useState("");
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await api.put('/settings/profile', {
+        email: email !== "arjun@example.com" ? email : undefined,
+        phone_number: phone !== "+91 98765 43210" ? phone : undefined,
+      });
+
+      if (response.data.message.includes('OTP sent')) {
+        setOtpEmail(email);
+        setOtpSent(true);
+        toast({
+          title: "OTP Sent",
+          description: "Please verify your email with the OTP sent.",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: response.data.message || "Profile updated successfully",
+        });
+        setOtpSent(false);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await api.post('/settings/verify-email', {
+        email: otpEmail,
+        otp: otp,
+      });
+
+      toast({
+        title: "Success",
+        description: "Email updated successfully",
+      });
+      setOtpSent(false);
+      setOtp("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to verify OTP",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-2xl mx-auto">
@@ -22,11 +96,66 @@ const SettingsPage = () => {
               <User className="h-5 w-5 text-primary" />
               <h3 className="text-base font-semibold font-display text-foreground">Profile</h3>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><Label>Full Name</Label><Input defaultValue="Arjun Mehta" className="mt-1.5 rounded-xl" /></div>
-              <div><Label>Email</Label><Input defaultValue="arjun@example.com" className="mt-1.5 rounded-xl" /></div>
-              <div><Label>Phone</Label><Input defaultValue="+91 98765 43210" className="mt-1.5 rounded-xl" /></div>
-            </div>
+            <form onSubmit={handleProfileUpdate} className="space-y-4">
+              <div>
+                <Label>Full Name</Label>
+                <Input 
+                  value={fullName} 
+                  disabled 
+                  className="mt-1.5 rounded-xl bg-muted" 
+                  title="Name is fetched from your Aadhaar/PAN records and cannot be changed"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your name is automatically fetched from Aadhaar/PAN records and cannot be modified.
+                </p>
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input 
+                  type="email"
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1.5 rounded-xl" 
+                />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input 
+                  type="tel"
+                  value={phone} 
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="mt-1.5 rounded-xl" 
+                />
+              </div>
+              <Button disabled={loading} className="rounded-xl">
+                {loading ? "Updating..." : "Update Profile"}
+              </Button>
+            </form>
+
+            {/* OTP Verification for Email */}
+            {otpSent && (
+              <form onSubmit={handleVerifyEmail} className="space-y-4 mt-6 pt-6 border-t">
+                <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-xl">
+                  <p className="text-sm text-blue-900 dark:text-blue-200">
+                    An OTP has been sent to <strong>{otpEmail}</strong>
+                  </p>
+                </div>
+                <div>
+                  <Label>Enter OTP</Label>
+                  <Input 
+                    type="text"
+                    placeholder="000000"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="mt-1.5 rounded-xl"
+                    maxLength={6}
+                  />
+                </div>
+                <Button type="submit" disabled={loading || otp.length !== 6} className="rounded-xl">
+                  {loading ? "Verifying..." : "Verify Email"}
+                </Button>
+              </form>
+            )}
           </motion.div>
 
           {/* KYC */}
@@ -92,8 +221,6 @@ const SettingsPage = () => {
               ))}
             </div>
           </motion.div>
-
-          <Button className="rounded-xl">Save Changes</Button>
         </div>
       </div>
     </DashboardLayout>

@@ -370,3 +370,55 @@ export const tokenStorage = {
     return !!this.getToken();
   },
 };
+
+// Generic HTTP client
+export const api = {
+  async request(method: string, endpoint: string, data?: any): Promise<any> {
+    const token = tokenStorage.getToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const options: RequestInit = {
+      method,
+      headers,
+    };
+
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  async get(endpoint: string, data?: any): Promise<any> {
+    return this.request('GET', endpoint, data);
+  },
+
+  async post(endpoint: string, data?: any): Promise<any> {
+    return this.request('POST', endpoint, data);
+  },
+
+  async put(endpoint: string, data?: any): Promise<any> {
+    return this.request('PUT', endpoint, data);
+  },
+
+  async patch(endpoint: string, data?: any): Promise<any> {
+    return this.request('PATCH', endpoint, data);
+  },
+
+  async delete(endpoint: string, data?: any): Promise<any> {
+    return this.request('DELETE', endpoint, data);
+  },
+};
