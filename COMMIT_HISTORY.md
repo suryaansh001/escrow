@@ -1,12 +1,13 @@
 # Commit History
 
-This document lists all commits in the repository with date-time, author, and commit message.
+This document lists all commits in the repository with date-time, author, branch, and commit message.
 
 ---
 
 ## Commit 1
 - **Date/Time:** 2026-03-06 18:21:49
 - **Author:** copilot-swe-agent[bot]
+- **Branch:** copilot/create-commit-list
 - **Message:** Initial plan
 
 ---
@@ -14,6 +15,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 2
 - **Date/Time:** 2026-03-06 10:22:51
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** update profile
 
 ---
@@ -21,6 +23,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 3
 - **Date/Time:** 2026-03-05 10:42:17
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** crud front and back
 
 ---
@@ -28,6 +31,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 4
 - **Date/Time:** 2026-03-05 10:31:45
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** sudahar in frontend compatibility
 
 ---
@@ -35,6 +39,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 5
 - **Date/Time:** 2026-03-05 10:25:14
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** basic backend functionalities
 
 ---
@@ -42,6 +47,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 6
 - **Date/Time:** 2026-03-05 09:04:14
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** favicon new sundar
 
 ---
@@ -49,6 +55,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 7
 - **Date/Time:** 2026-03-05 09:01:06
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** fixed the new files tree
 
 ---
@@ -56,6 +63,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 8
 - **Date/Time:** 2026-03-05 08:56:09
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** fixed module import
 
 ---
@@ -63,6 +71,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 9
 - **Date/Time:** 2026-03-05 00:19:10
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** file structure fixed
 
 ---
@@ -70,6 +79,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 10
 - **Date/Time:** 2026-03-04 21:54:32
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** fixed layout
 
 ---
@@ -77,6 +87,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 11
 - **Date/Time:** 2026-03-04 21:35:07
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** back+otp
 
 ---
@@ -84,6 +95,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 12
 - **Date/Time:** 2026-03-04 21:34:46
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** final_login_otp_register
 
 ---
@@ -91,6 +103,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 13
 - **Date/Time:** 2026-03-04 21:07:28
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** adding front and bac2k
 
 ---
@@ -98,6 +111,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 14
 - **Date/Time:** 2026-03-04 21:06:35
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** adding front and back
 
 ---
@@ -105,6 +119,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 15
 - **Date/Time:** 2026-02-01 13:21:53
 - **Author:** Anmol Sahu
+- **Branch:** main
 - **Message:** Add section on escrow in financial transactions
 
 ---
@@ -112,6 +127,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 16
 - **Date/Time:** 2026-02-01 11:53:32
 - **Author:** Anmol Sahu
+- **Branch:** main
 - **Message:** Add section on blockchain characteristics and consensus mechanisms
 
 ---
@@ -119,6 +135,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 17
 - **Date/Time:** 2026-01-29 15:33:35
 - **Author:** EkanshSaraswat
+- **Branch:** main
 - **Message:** Update literature.md
 
 ---
@@ -126,6 +143,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 18
 - **Date/Time:** 2026-01-29 15:21:45
 - **Author:** EkanshSaraswat
+- **Branch:** main
 - **Message:** Update literature.md
 
 ---
@@ -133,6 +151,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 19
 - **Date/Time:** 2026-01-27 15:44:18
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper risk based approaches in financial systems
 
 ---
@@ -140,6 +159,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 20
 - **Date/Time:** 2026-01-27 15:44:07
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper risk based approaches in financial systems
 
 ---
@@ -147,6 +167,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 21
 - **Date/Time:** 2026-01-27 15:39:28
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper risk based approaches in financial systems
 
 ---
@@ -154,6 +175,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 22
 - **Date/Time:** 2026-01-27 15:38:45
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper risk based approaches in financial systems
 
 ---
@@ -161,6 +183,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 23
 - **Date/Time:** 2026-01-27 15:37:35
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper risk based approaches in financial systems
 
 ---
@@ -168,6 +191,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 24
 - **Date/Time:** 2026-01-27 15:37:01
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** Delete risk based approaches section from literature
 
 ---
@@ -175,6 +199,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 25
 - **Date/Time:** 2026-01-27 15:36:12
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper risk based approaches in financial systems
 
 ---
@@ -182,6 +207,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 26
 - **Date/Time:** 2026-01-22 07:46:33
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** cleaned up stuff for literature md
 
 ---
@@ -189,6 +215,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 27
 - **Date/Time:** 2026-01-22 07:45:47
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper fraud risk scoring models and techniques
 
 ---
@@ -196,6 +223,7 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 28
 - **Date/Time:** 2026-01-22 07:45:40
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper fraud risk scoring models and techniques
 
 ---
@@ -203,32 +231,45 @@ This document lists all commits in the repository with date-time, author, and co
 ## Commit 29
 - **Date/Time:** 2026-01-22 07:22:42
 - **Author:** HaDeS
+- **Branch:** main
 - **Message:** adding research paper fraud risk scoring models and techniques
 
 ---
 
 ## Commit 30
-- **Date/Time:** 2026-01-21 05:53:55
-- **Author:** HaDeS
-- **Message:** Add initial content to literature.md
+- **Date/Time:** 2026-01-21 10:02:38
+- **Author:** Manushi17
+- **Branch:** Manushi17-articles
+- **Message:** Add files via upload
 
 ---
 
 ## Commit 31
-- **Date/Time:** 2026-01-21 05:53:17
+- **Date/Time:** 2026-01-21 05:53:55
 - **Author:** HaDeS
-- **Message:** ono
+- **Branch:** main
+- **Message:** Add initial content to literature.md
 
 ---
 
 ## Commit 32
-- **Date/Time:** 2026-01-21 05:52:35
+- **Date/Time:** 2026-01-21 05:53:17
 - **Author:** HaDeS
-- **Message:** Add initial content for literature section
+- **Branch:** main
+- **Message:** ono
 
 ---
 
 ## Commit 33
+- **Date/Time:** 2026-01-21 05:52:35
+- **Author:** HaDeS
+- **Branch:** main
+- **Message:** Add initial content for literature section
+
+---
+
+## Commit 34
 - **Date/Time:** 2026-01-16 16:02:24
 - **Author:** Suryaansh
+- **Branch:** main
 - **Message:** initial stuff
