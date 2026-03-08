@@ -1,10 +1,16 @@
 // SPDX-License-Identifier: MIT
+// Escrow smart contract for adaptive escrow system
+// The intital Structure, more features will be added later
 pragma solidity ^0.8.20;
+
 
 contract Escrow {
 
+    //address of buyer initiationg escrow
     address public buyer;
+    //address of seller recieving funds
     address public seller;
+    //neutral party responsible for dispute resolution
     address public arbiter;
 
     bool public fundsReleased;
