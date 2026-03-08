@@ -15,5 +15,11 @@ contract Escrow {
         arbiter = _arbiter;
     }
 
+    function releaseFunds() public {
+        require(msg.sender == arbiter, "Only arbiter can release funds");
 
+        payable(seller).transfer(address(this).balance);
+    }
+
+    receive() external payable {}
 }
