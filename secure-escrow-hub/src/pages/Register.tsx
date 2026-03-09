@@ -30,6 +30,11 @@ const Register = () => {
     setError(null);
     setSuccess(null);
 
+    if (!name || name.trim().length < 3) {
+      setError("Full name must be at least 3 characters");
+      return;
+    }
+
     if (!email || !password) {
       setError("Email and password are required");
       return;
