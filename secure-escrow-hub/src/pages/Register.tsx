@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowRight, Mail, Lock, Shield, Phone, User, AlertCircle, CheckCircle } from "lucide-react";
+import { ArrowRight, Mail, Lock, Shield, Phone, User, AlertCircle, CheckCircle, Eye, EyeOff, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +10,46 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { authApi, tokenStorage } from "@/lib/api";
 import Navbar from "@/components/layout/Navbar";
 
+const PASSWORD_CHARS = {
+  lower: "abcdefghijklmnopqrstuvwxyz",
+  upper: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+  digits: "0123456789",
+  symbols: "!@#$%^&*()-_=+[]{}|;:,.<>?",
+};
+
+function generateStrongPassword(): string {
+  const all = PASSWORD_CHARS.lower + PASSWORD_CHARS.upper + PASSWORD_CHARS.digits + PASSWORD_CHARS.symbols;
+  const required = [
+    PASSWORD_CHARS.lower[Math.floor(Math.random() * PASSWORD_CHARS.lower.length)],
+    PASSWORD_CHARS.upper[Math.floor(Math.random() * PASSWORD_CHARS.upper.length)],
+    PASSWORD_CHARS.digits[Math.floor(Math.random() * PASSWORD_CHARS.digits.length)],
+    PASSWORD_CHARS.symbols[Math.floor(Math.random() * PASSWORD_CHARS.symbols.length)],
+  ];
+  const extra = Array.from({ length: 8 }, () => all[Math.floor(Math.random() * all.length)]);
+  return [...required, ...extra].sort(() => Math.random() - 0.5).join("");
+}
+
+function getPasswordStrength(pw: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^a-zA-Z0-9]/.test(pw)) score++;
+  if (score <= 2) return { score, label: "Weak", color: "bg-red-500" };
+  if (score <= 4) return { score, label: "Fair", color: "bg-yellow-500" };
+  if (score === 5) return { score, label: "Good", color: "bg-blue-500" };
+  return { score, label: "Strong", color: "bg-green-500" };
+}
+
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "otp">("form");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -24,6 +58,8 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+
+  const passwordStrength = getPasswordStrength(password);
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +81,24 @@ const Register = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase letter");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one number");
+      return;
+    }
+    if (!/[^a-zA-Z0-9]/.test(password)) {
+      setError("Password must contain at least one special character");
       return;
     }
 
@@ -186,18 +238,58 @@ const Register = () => {
                   </div>
                 </div>
                 <div>
-                  <Label>Password</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label>Password</Label>
+                    <button
+                      type="button"
+                      onClick={() => setPassword(generateStrongPassword())}
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                      disabled={loading}
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      Generate strong password
+                    </button>
+                  </div>
                   <div className="relative mt-1.5">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
-                      className="pl-10 rounded-xl"
+                      className="pl-10 pr-10 rounded-xl"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={loading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
+                  {password && (
+                    <div className="mt-2">
+                      <div className="flex gap-1 mb-1">
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full transition-colors ${
+                              i <= passwordStrength.score ? passwordStrength.color : "bg-muted"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`text-xs ${
+                        passwordStrength.label === "Weak" ? "text-red-500" :
+                        passwordStrength.label === "Fair" ? "text-yellow-500" :
+                        passwordStrength.label === "Good" ? "text-blue-500" : "text-green-600"
+                      }`}>
+                        {passwordStrength.label}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <Button
