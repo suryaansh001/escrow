@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { User, Shield, Landmark, Bell, Lock, Upload } from "lucide-react";
+import { User, Shield, Landmark, Bell, Upload } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +12,14 @@ import { api } from "@/lib/api";
 const SettingsPage = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [bankLoading, setBankLoading] = useState(false);
   const [fullName] = useState("Arjun Mehta"); // Read-only - from Aadhaar/PAN
   const [email, setEmail] = useState("arjun@example.com");
-  const [phone, setPhone] = useState("+91 98765 43210");
   const [otpSent, setOtpSent] = useState(false);
   const [otpEmail, setOtpEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [bankAccount, setBankAccount] = useState("");
+  const [ifscCode, setIfscCode] = useState("");
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +28,6 @@ const SettingsPage = () => {
     try {
       const response = await api.put('/settings/profile', {
         email: email !== "arjun@example.com" ? email : undefined,
-        phone_number: phone !== "+91 98765 43210" ? phone : undefined,
       });
 
       if (response.data.message.includes('OTP sent')) {
@@ -81,6 +82,41 @@ const SettingsPage = () => {
     }
   };
 
+  const handleBankDetailsUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!bankAccount || !ifscCode) {
+      toast({
+        title: "Error",
+        description: "Both account number and IFSC code are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setBankLoading(true);
+
+    try {
+      const response = await api.put('/settings/bank-details', {
+        bank_account: bankAccount,
+        bank_ifsc: ifscCode,
+      });
+
+      toast({
+        title: "Success",
+        description: response.data.message || "Bank details updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.error || "Failed to update bank details",
+        variant: "destructive",
+      });
+    } finally {
+      setBankLoading(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-2xl mx-auto">
@@ -115,15 +151,6 @@ const SettingsPage = () => {
                   type="email"
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1.5 rounded-xl" 
-                />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input 
-                  type="tel"
-                  value={phone} 
-                  onChange={(e) => setPhone(e.target.value)}
                   className="mt-1.5 rounded-xl" 
                 />
               </div>
@@ -182,28 +209,29 @@ const SettingsPage = () => {
               <Landmark className="h-5 w-5 text-primary" />
               <h3 className="text-base font-semibold font-display text-foreground">Bank Details</h3>
             </div>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><Label>Account Number</Label><Input placeholder="XXXX XXXX 1234" className="mt-1.5 rounded-xl" /></div>
-              <div><Label>IFSC Code</Label><Input placeholder="SBIN0001234" className="mt-1.5 rounded-xl" /></div>
-            </div>
-          </motion.div>
-
-          {/* Security */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="card-fintech">
-            <div className="flex items-center gap-2 mb-4">
-              <Lock className="h-5 w-5 text-primary" />
-              <h3 className="text-base font-semibold font-display text-foreground">Security</h3>
-            </div>
-            <div className="space-y-4">
-              <Button variant="outline" className="rounded-xl">Change Password</Button>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-foreground">Two-Factor Authentication</p>
-                  <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
-                </div>
-                <Switch />
+            <form onSubmit={handleBankDetailsUpdate} className="space-y-4">
+              <div>
+                <Label>Account Number</Label>
+                <Input 
+                  placeholder="XXXX XXXX 1234" 
+                  value={bankAccount}
+                  onChange={(e) => setBankAccount(e.target.value)}
+                  className="mt-1.5 rounded-xl" 
+                />
               </div>
-            </div>
+              <div>
+                <Label>IFSC Code</Label>
+                <Input 
+                  placeholder="SBIN0001234" 
+                  value={ifscCode}
+                  onChange={(e) => setIfscCode(e.target.value.toUpperCase())}
+                  className="mt-1.5 rounded-xl" 
+                />
+              </div>
+              <Button disabled={bankLoading} className="rounded-xl">
+                {bankLoading ? "Updating..." : "Update Bank Details"}
+              </Button>
+            </form>
           </motion.div>
 
           {/* Notifications */}

@@ -36,8 +36,20 @@ async function updateuserProfile(req, res) {
             if (existingUser.length > 0) {
                 return res.status(400).json({ error: 'Email is already in use by another account' });
             }
-            const otp = generateOtp(email);
-            await sendOtp(email, 'Email Change Verification', `Your OTP for email change is: ${otp}`);
+            const otp = generateOtp();
+            
+            // Store OTP in database
+            await sql`
+                INSERT INTO otp_requests (email, otp, is_used) 
+                VALUES (${email}, ${otp}, false) 
+                ON CONFLICT (email) DO UPDATE SET 
+                  otp = EXCLUDED.otp,
+                  is_used = false,
+                  created_at = CURRENT_TIMESTAMP,
+                  expires_at = (CURRENT_TIMESTAMP + INTERVAL '10 minutes')
+            `;
+            
+            await sendOtp(email, otp);
             return res.status(200).json({ message: 'OTP sent to the new email address. Please verify to complete the email update.' });
         }
 
@@ -67,17 +79,24 @@ async function verifyEmailChange(req, res) {
         }
 
         const updatedUser = await sql`
-        UPDATE users 
-        SET email = ${email} 
-        WHERE id = ${userId} 
-        RETURNING id, email, full_name, phone
-    `;
+            UPDATE users 
+            SET email = ${email} 
+            WHERE id = ${userId} 
+            RETURNING id, email, full_name, phone_number
+        `;
 
         if (updatedUser.length === 0) {
             return res.status(400).json({ error: 'Failed to update email' });
         }
 
-        res.status(200).json({ user: updatedUser[0] });
+        // Mark OTP as used
+        await sql`
+            UPDATE otp_requests 
+            SET is_used = true 
+            WHERE email = ${email} AND otp = ${otp}
+        `;
+
+        res.status(200).json({ message: 'Email updated successfully', user: updatedUser[0] });
     } catch (error) {
         _error('Error verifying email change:', error);
         res.status(500).json({ error: 'Internal server error' });

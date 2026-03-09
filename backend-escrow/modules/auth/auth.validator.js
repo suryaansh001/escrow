@@ -1,7 +1,5 @@
 import Joi from 'joi';
-import passwordComplexityPackage from 'joi-password-complexity';
-
-const { passwordComplexity } = passwordComplexityPackage;
+import passwordComplexity from 'joi-password-complexity';
 
 const registerValidation = (data) => {
   const schema = Joi.object({
