@@ -12,6 +12,7 @@ import Register from "./pages/Register";
 import WalletPage from "./pages/Wallet";
 import SettingsPage from "./pages/Settings";
 import DisputePage from "./pages/Disputes";
+import DisputesListPage from "./pages/DisputesList";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,7 +32,8 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/wallet" element={<WalletPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/disputes" element={<DisputePage />} />
+          <Route path="/disputes" element={<DisputesListPage />} />
+          <Route path="/disputes/:id" element={<DisputePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

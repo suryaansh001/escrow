@@ -156,6 +156,20 @@ export const dashboardApi = {
 
     return response.json();
   },
+
+  async listUsers() {
+    const token = tokenStorage.getToken();
+    if (!token) throw new Error('No authentication token found');
+    const response = await fetch(`${API_BASE_URL}/dashboard/users`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch users');
+    }
+    return response.json();
+  },
 };
 
 // Escrow API calls

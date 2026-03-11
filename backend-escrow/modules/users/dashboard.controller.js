@@ -114,3 +114,18 @@ async function getDashboardData(req, res) {
 }
 
 export { getDashboardData };
+
+export async function listUsers(req, res) {
+    try {
+        const userId = req.user.id;
+        const users = await sql`
+            SELECT id, email, full_name FROM users 
+            WHERE id != ${userId}
+            ORDER BY full_name ASC
+        `;
+        return res.status(200).json({ success: true, users });
+    } catch (error) {
+        console.error('Error listing users:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}

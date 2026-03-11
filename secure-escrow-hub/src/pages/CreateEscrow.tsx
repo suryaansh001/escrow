@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Upload, Shield, Zap, AlertCircle, Loader } from "lucide-react";
@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { escrowApi } from "@/lib/api";
+import { escrowApi, dashboardApi } from "@/lib/api";
 
 const steps = ["Basic Info", "Risk Settings", "Confirm & Pay"];
 
@@ -20,23 +20,42 @@ const CreateEscrow = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Merchant list state
+  const [merchants, setMerchants] = useState<{ id: string; email: string; full_name: string }[]>([]);
+  const [merchantsLoading, setMerchantsLoading] = useState(false);
   
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("inr");
-  const [counterpartyEmail, setCounterpartyEmail] = useState("");
+  const [selectedMerchantId, setSelectedMerchantId] = useState("");
   const [transactionType, setTransactionType] = useState("service");
   const [adaptiveRisk, setAdaptiveRisk] = useState(true);
   const [milestones, setMilestones] = useState(false);
+
+  useEffect(() => {
+    const fetchMerchants = async () => {
+      try {
+        setMerchantsLoading(true);
+        const res = await dashboardApi.listUsers();
+        if (res.success) setMerchants(res.users || []);
+      } catch {
+        // non-critical, leave dropdown empty
+      } finally {
+        setMerchantsLoading(false);
+      }
+    };
+    fetchMerchants();
+  }, []);
 
   const next = () => setCurrentStep((s) => Math.min(s + 1, 2));
   const prev = () => setCurrentStep((s) => Math.max(s - 1, 0));
 
   const handleSubmit = async () => {
-    if (!title || !description || !amount || !counterpartyEmail) {
-      setError("Please fill in all required fields");
+    if (!title || !description || !amount || !selectedMerchantId) {
+      setError("Please fill in all required fields, including selecting a merchant");
       return;
     }
 
@@ -45,7 +64,7 @@ const CreateEscrow = () => {
       setError(null);
 
       const response = await escrowApi.createEscrow({
-        seller_email: counterpartyEmail,
+        seller_id: selectedMerchantId,
         amount: parseFloat(amount),
         description,
         transaction_type: transactionType,
@@ -157,13 +176,22 @@ const CreateEscrow = () => {
                   </div>
                 </div>
                 <div>
-                  <Label>Counterparty Email / Phone</Label>
-                  <Input 
-                    value={counterpartyEmail}
-                    onChange={(e) => setCounterpartyEmail(e.target.value)}
-                    placeholder="seller@example.com" 
-                    className="mt-1.5 rounded-xl" 
-                  />
+                  <Label>Select Merchant (Seller)</Label>
+                  <Select value={selectedMerchantId} onValueChange={setSelectedMerchantId}>
+                    <SelectTrigger className="mt-1.5 rounded-xl">
+                      <SelectValue placeholder={merchantsLoading ? "Loading merchants..." : "Select a merchant"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {merchants.length === 0 && !merchantsLoading && (
+                        <SelectItem value="__none__" disabled>No merchants found</SelectItem>
+                      )}
+                      {merchants.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.full_name ? `${m.full_name} (${m.email})` : m.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             )}
