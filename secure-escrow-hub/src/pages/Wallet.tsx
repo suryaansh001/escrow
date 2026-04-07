@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Wallet as WalletIcon, ArrowUpRight, ArrowDownLeft, Plus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
 const history = [
   { type: "credit", label: "Escrow Release - TXN-003", amount: "+₹8,500", date: "Jan 18, 2026" },
@@ -12,6 +13,8 @@ const history = [
 ];
 
 const WalletPage = () => {
+  const { wallet, transactions } = useAdaptiveEscrow();
+
   return (
     <DashboardLayout>
       <div className="max-w-3xl mx-auto">
@@ -29,7 +32,17 @@ const WalletPage = () => {
             <WalletIcon className="h-4 w-4" />
             <span className="text-sm font-medium">Available Balance</span>
           </div>
-          <div className="text-4xl font-bold font-display mb-6">₹24,500</div>
+          <div className="text-4xl font-bold font-display mb-6">₹{wallet.availableBalance.toLocaleString()}</div>
+          <div className="grid sm:grid-cols-2 gap-3 mb-5">
+            <div className="rounded-xl bg-primary-foreground/10 p-3">
+              <p className="text-xs opacity-80">Locked Funds</p>
+              <p className="text-lg font-semibold">₹{wallet.lockedFunds.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl bg-primary-foreground/10 p-3">
+              <p className="text-xs opacity-80">Pending Transactions</p>
+              <p className="text-lg font-semibold">{wallet.pendingTransactions}</p>
+            </div>
+          </div>
           <div className="flex gap-3">
             <Button size="sm" className="rounded-xl bg-primary-foreground/20 hover:bg-primary-foreground/30 backdrop-blur border-0">
               <Plus className="mr-1 h-4 w-4" /> Add Funds
@@ -50,7 +63,12 @@ const WalletPage = () => {
             <h3 className="text-base font-semibold font-display text-foreground mb-4">Transaction History</h3>
           </div>
           <div className="divide-y divide-border">
-            {history.map((item, i) => (
+            {[...history, ...transactions.map((tx) => ({
+              type: tx.status === "Released" ? "credit" : "debit",
+              label: `${tx.status} - ${tx.id}`,
+              amount: `${tx.status === "Released" ? "+" : "-"}₹${tx.amount.toLocaleString()}`,
+              date: new Date(tx.createdAt).toLocaleDateString(),
+            }))].slice(0, 8).map((item, i) => (
               <div key={i} className="flex items-center justify-between px-6 py-4 hover:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center ${

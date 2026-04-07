@@ -1,11 +1,9 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { AlertTriangle, Loader, AlertCircle, ArrowRight, PlusCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { disputeApi } from "@/lib/api";
+import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
 const statusColor: Record<string, string> = {
   open: "bg-destructive/10 text-destructive",
@@ -14,28 +12,7 @@ const statusColor: Record<string, string> = {
 };
 
 const DisputesListPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [disputes, setDisputes] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchDisputes = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await disputeApi.getDisputes();
-        if (response.success) {
-          setDisputes(response.disputes || []);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch disputes");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDisputes();
-  }, []);
+  const { disputes } = useAdaptiveEscrow();
 
   return (
     <DashboardLayout>
@@ -50,18 +27,7 @@ const DisputesListPage = () => {
           </div>
         </div>
 
-        {error && (
-          <Alert className="mb-6 bg-destructive/10 border-destructive/20">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <AlertDescription className="text-destructive">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : disputes.length === 0 ? (
+        {disputes.length === 0 ? (
           <div className="card-fintech text-center py-16 text-muted-foreground">
             <AlertTriangle className="h-10 w-10 mx-auto mb-3 opacity-30" />
             <p className="font-medium">No disputes found</p>
@@ -80,15 +46,15 @@ const DisputesListPage = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-semibold text-foreground truncate">
-                      Escrow #{dispute.escrow_id?.slice(0, 8)}
+                      Escrow #{dispute.transactionId?.slice(0, 8)}
                     </span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[dispute.status] || "bg-muted text-muted-foreground"}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[dispute.status.toLowerCase()] || "bg-muted text-muted-foreground"}`}>
                       {dispute.status}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">{dispute.reason}</p>
+                  <p className="text-xs text-muted-foreground truncate">{dispute.latestMessage}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {dispute.created_at ? new Date(dispute.created_at).toLocaleDateString() : ""}
+                    {new Date(dispute.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <Button asChild variant="ghost" size="sm" className="rounded-xl shrink-0">

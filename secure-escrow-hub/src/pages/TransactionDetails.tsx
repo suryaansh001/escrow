@@ -1,19 +1,28 @@
+import { useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, FileText, Shield, AlertTriangle, CheckCircle2, Clock, User, Download } from "lucide-react";
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle2, Clock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-
-const timelineSteps = [
-  { label: "Escrow Created", date: "Jan 15, 2026", done: true },
-  { label: "Funds Deposited", date: "Jan 15, 2026", done: true },
-  { label: "Seller Accepted", date: "Jan 16, 2026", done: true },
-  { label: "Delivery Confirmed", date: "Pending", done: false },
-  { label: "Funds Released", date: "—", done: false },
-];
+import { RiskIndicator } from "@/components/common/RiskIndicator";
+import { RiskExplanation } from "@/components/common/RiskExplanation";
+import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
 const TransactionDetails = () => {
   const { id } = useParams();
+  const { transactions, confirmDelivery, raiseDispute } = useAdaptiveEscrow();
+
+  const transaction = useMemo(() => transactions.find((item) => item.id === id) || transactions[0], [transactions, id]);
+
+  if (!transaction) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <p className="text-sm text-muted-foreground">No transaction found</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -23,10 +32,10 @@ const TransactionDetails = () => {
             <Link to="/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold font-display text-foreground">{id || "TXN-001"}</h1>
+            <h1 className="text-2xl font-bold font-display text-foreground">{transaction.id}</h1>
             <p className="text-muted-foreground text-sm">Transaction Details</p>
           </div>
-          <span className="ml-auto status-badge bg-primary/10 text-primary">Funded</span>
+          <span className="ml-auto status-badge bg-primary/10 text-primary">{transaction.status}</span>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -50,22 +59,20 @@ const TransactionDetails = () => {
                   <p className="text-muted-foreground mb-1">Seller</p>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-accent" />
-                    <span className="font-medium text-foreground">Priya Sharma</span>
+                    <span className="font-medium text-foreground">{transaction.counterpartyName}</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Amount</p>
-                  <span className="font-bold text-foreground text-lg">₹15,000</span>
+                  <span className="font-bold text-foreground text-lg">₹{transaction.amount.toLocaleString()}</span>
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-1">Type</p>
-                  <span className="font-medium text-foreground">Service</span>
+                  <p className="text-muted-foreground mb-1">KYC</p>
+                  <span className="font-medium text-foreground">{transaction.kycStatus}</span>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-border">
-                <Button variant="outline" size="sm" className="rounded-xl">
-                  <FileText className="mr-2 h-4 w-4" /> View Agreement
-                </Button>
+                <p className="text-sm text-muted-foreground">Terms: {transaction.terms}</p>
               </div>
             </motion.div>
 
@@ -78,7 +85,7 @@ const TransactionDetails = () => {
             >
               <h3 className="text-base font-semibold font-display text-foreground mb-6">Timeline</h3>
               <div className="space-y-0">
-                {timelineSteps.map((step, i) => (
+                {transaction.timeline.map((step, i) => (
                   <div key={step.label} className="flex gap-4">
                     <div className="flex flex-col items-center">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
@@ -101,13 +108,14 @@ const TransactionDetails = () => {
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3">
-              <Button className="rounded-xl">
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Mark as Delivered
+              <Button className="rounded-xl" onClick={() => confirmDelivery(transaction.id)}>
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Confirm Delivery
               </Button>
-              <Button variant="outline" className="rounded-xl">
-                <Download className="mr-2 h-4 w-4" /> Release Funds
-              </Button>
-              <Button variant="outline" className="rounded-xl text-destructive hover:text-destructive">
+              <Button
+                variant="outline"
+                className="rounded-xl text-destructive hover:text-destructive"
+                onClick={() => raiseDispute(transaction.id)}
+              >
                 <AlertTriangle className="mr-2 h-4 w-4" /> Raise Dispute
               </Button>
             </div>
@@ -122,44 +130,28 @@ const TransactionDetails = () => {
           >
             <div className="card-fintech">
               <h3 className="text-base font-semibold font-display text-foreground mb-4">Risk Analysis</h3>
-
-              <div className="flex justify-center mb-4">
-                <div className="relative w-24 h-24">
-                  <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96">
-                    <circle cx="48" cy="48" r="40" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
-                    <circle
-                      cx="48" cy="48" r="40" fill="none" stroke="hsl(var(--accent))" strokeWidth="6"
-                      strokeDasharray={`${(18 / 100) * 251.3} 251.3`}
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-xl font-bold font-display text-foreground">18</span>
-                    <span className="text-[10px] text-muted-foreground">/ 100</span>
-                  </div>
-                </div>
+              <div className="mb-4">
+                <RiskIndicator
+                  level={transaction.riskLevel}
+                  score={transaction.riskScore}
+                  reason={transaction.risk.explanation}
+                  details={`Flags: ${transaction.risk.flags.join(", ")}`}
+                  showTooltip={false}
+                />
               </div>
 
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Fraud Likelihood</span>
-                  <span className="font-medium text-accent">0.12x</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Account Age Score</span>
-                  <span className="font-medium text-foreground">92/100</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">KYC Status</span>
-                  <span className="status-badge risk-badge-low text-xs">Verified</span>
-                </div>
-              </div>
+              <RiskExplanation
+                rolling={{ score: transaction.risk.rollingWindowScore, explanation: "Rolling window anomaly score" }}
+                cusum={{ score: transaction.risk.cusumScore, explanation: "CUSUM trend divergence score" }}
+                surge={{ ratio: transaction.risk.surgeRatio, explanation: "Surge ratio against recent baseline" }}
+                overall={{ level: transaction.riskLevel, reason: transaction.risk.explanation }}
+              />
             </div>
 
             <div className="card-fintech">
               <h3 className="text-sm font-semibold font-display text-foreground mb-3">Verification</h3>
               <div className="space-y-2">
-                {["Aadhaar Verified", "PAN Verified", "Bank Verified"].map((v) => (
+                {["Identity check complete", "Payment method verified", "Device baseline healthy"].map((v) => (
                   <div key={v} className="flex items-center gap-2 text-sm">
                     <Shield className="h-3.5 w-3.5 text-accent" />
                     <span className="text-foreground">{v}</span>

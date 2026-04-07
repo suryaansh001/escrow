@@ -1,50 +1,21 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { MessageCircle, Upload, Clock, AlertTriangle, Shield, ArrowLeft, Loader, AlertCircle } from "lucide-react";
+import { Upload, AlertTriangle, ArrowLeft, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { disputeApi } from "@/lib/api";
+import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
 const DisputePage = () => {
   const { id } = useParams();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [dispute, setDispute] = useState<any>(null);
+  const { disputes } = useAdaptiveEscrow();
+  const [error] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    const fetchDispute = async () => {
-      if (!id) return;
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await disputeApi.getDisputeById(id);
-        if (response.success && response.dispute) {
-          setDispute(response.dispute);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch dispute");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDispute();
-  }, [id]);
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="max-w-3xl mx-auto flex items-center justify-center h-96">
-          <Loader className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const dispute = useMemo(() => disputes.find((item) => item.id === id) || disputes[0], [disputes, id]);
 
   if (error || !dispute) {
     return (
@@ -60,7 +31,8 @@ const DisputePage = () => {
   }
 
   const messages = [
-    { from: "buyer", text: dispute.reason, time: new Date(dispute.created_at).toLocaleTimeString() },
+    { from: "buyer", text: dispute.latestMessage, time: new Date(dispute.createdAt).toLocaleTimeString() },
+    { from: "admin", text: "Case is under risk review. Please share additional proof if available.", time: "14:22" },
   ];
 
   return (
@@ -74,8 +46,8 @@ const DisputePage = () => {
             <h1 className="text-2xl font-bold font-display text-foreground">Dispute - {dispute.id.slice(0, 8)}</h1>
             <p className="text-muted-foreground text-sm">Status: {dispute.status}</p>
           </div>
-          <span className={`ml-auto status-badge ${dispute.status === 'resolved' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'}`}>
-            {dispute.status === 'resolved' ? 'Resolved' : 'Under Review'}
+          <span className={`ml-auto status-badge ${dispute.status === 'Resolved' ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'}`}>
+            {dispute.status === 'Resolved' ? 'Resolved' : 'Under Review'}
           </span>
         </div>
 
@@ -114,11 +86,16 @@ const DisputePage = () => {
             ))}
           </div>
           <div className="flex gap-2">
-            <Input placeholder="Type a message..." className="rounded-xl flex-1" />
+            <Input
+              placeholder="Type a message..."
+              className="rounded-xl flex-1"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
             <Button variant="outline" size="sm" className="rounded-xl shrink-0">
               <Upload className="h-4 w-4" />
             </Button>
-            <Button size="sm" className="rounded-xl">Send</Button>
+            <Button size="sm" className="rounded-xl" onClick={() => setMessage("")}>Send</Button>
           </div>
         </motion.div>
 

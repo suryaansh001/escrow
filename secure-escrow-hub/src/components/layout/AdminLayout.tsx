@@ -2,12 +2,11 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  LayoutDashboard,
-  PlusCircle,
-  FileText,
-  CheckCircle2,
+  BarChart3,
   AlertTriangle,
-  Wallet,
+  Users,
+  TrendingUp,
+  FileText,
   Settings,
   Shield,
   Bell,
@@ -17,24 +16,23 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
-const sidebarItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-  { icon: PlusCircle, label: "Create Transaction", path: "/create-transaction" },
-  { icon: FileText, label: "Active Transactions", path: "/dashboard?tab=active" },
-  { icon: CheckCircle2, label: "Completed", path: "/dashboard?tab=completed" },
-  { icon: AlertTriangle, label: "Disputes", path: "/disputes" },
-  { icon: Wallet, label: "Wallet", path: "/wallet" },
-  { icon: Bell, label: "Notifications", path: "/notifications" },
-  { icon: Settings, label: "Settings", path: "/settings" },
+const adminSidebarItems = [
+  { icon: BarChart3, label: "Dashboard", path: "/admin" },
+  { icon: AlertTriangle, label: "Flagged Transactions", path: "/admin/flagged" },
+  { icon: Users, label: "User Management", path: "/admin/users" },
+  { icon: TrendingUp, label: "Risk Analysis", path: "/admin/risk-analysis" },
+  { icon: FileText, label: "Disputes", path: "/admin/disputes" },
+  { icon: Settings, label: "Settings", path: "/admin/settings" },
 ];
 
-const DashboardLayout = ({ children }: { children: ReactNode }) => {
+interface AdminLayoutProps {
+  children: ReactNode;
+}
+
+const AdminLayout = ({ children }: AdminLayoutProps) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { notifications } = useAdaptiveEscrow();
-  const unreadCount = notifications.filter((item) => !item.read).length;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -51,15 +49,17 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
       >
         <div className="h-16 flex items-center gap-2 px-6 border-b border-sidebar-border">
           <Shield className="h-6 w-6 text-sidebar-primary" />
-          <span className="font-display font-bold text-lg">SecureEscrow</span>
+          <span className="font-display font-bold text-lg">SecureEscrow Admin</span>
           <button className="ml-auto lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {sidebarItems.map((item) => {
-            const isActive = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(item.path.split("?")[0]));
+          {adminSidebarItems.map((item) => {
+            const isActive =
+              location.pathname === item.path ||
+              (item.path !== "/admin" && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
@@ -84,8 +84,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
               A
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Arjun Mehta</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">arjun@example.com</p>
+              <p className="text-sm font-medium truncate">Admin</p>
+              <p className="text-xs text-sidebar-foreground/50 truncate">admin@escrow.com</p>
             </div>
             <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
           </div>
@@ -102,12 +102,8 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           <div className="flex-1" />
           <Button variant="ghost" size="sm" className="relative">
             <Bell className="h-4.5 w-4.5" />
-            {unreadCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />}
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />
           </Button>
-          <div className="flex items-center gap-2 text-sm">
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold text-foreground">₹24,500</span>
-          </div>
         </header>
 
         {/* Content */}
@@ -116,7 +112,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="flex-1 p-6"
+          className="flex-1 p-6 overflow-auto"
         >
           {children}
         </motion.main>
@@ -125,4 +121,4 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export default DashboardLayout;
+export default AdminLayout;
