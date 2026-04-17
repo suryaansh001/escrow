@@ -1,5 +1,5 @@
 import express from 'express';
-import { createEscrow, getEscrowById, getEscrowsByUserId, updateEscrowState } from './escrow.controller.js';
+import { createEscrow, getEscrowById, getEscrowsByUserId, updateEscrowState, fundEscrow } from './escrow.controller.js';
 import { authMiddleware } from '../auth/auth.middleware.js';
 
 const router = express.Router();
@@ -15,5 +15,8 @@ router.get('/', authMiddleware, getEscrowsByUserId);
 
 // Update escrow state
 router.patch('/:id/state', authMiddleware, updateEscrowState);
+
+// Fund escrow from wallet
+router.post('/:id/fund', authMiddleware, fundEscrow);
 
 export default router;

@@ -51,6 +51,10 @@ CREATE TABLE users (
   reliability_score   DECIMAL(5,4) NOT NULL DEFAULT 0.0
                         CHECK (reliability_score >= 0 AND reliability_score <= 1),
 
+  -- Wallet balance for transaction simulation
+  wallet_balance      DECIMAL(18,2) NOT NULL DEFAULT 5000.00
+                        CHECK (wallet_balance >= 0),
+
   -- Cold start phase flag — lifted after N successful transactions
   is_restricted_phase BOOLEAN NOT NULL DEFAULT TRUE,
 
@@ -317,7 +321,32 @@ CREATE TABLE cusum_state (
 );
 
 -- ============================================================
--- 11. LOCK DURATION COMPUTATION LOG
+-- 11. WALLET TRANSACTIONS
+-- Track all wallet operations for transaction simulation
+-- ============================================================
+
+CREATE TYPE wallet_transaction_type AS ENUM ('deposit', 'withdrawal', 'transfer_sent', 'transfer_received', 'escrow_funded', 'escrow_released', 'escrow_refunded');
+
+CREATE TABLE wallet_transactions (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id             UUID NOT NULL REFERENCES users(id),
+  transaction_type    wallet_transaction_type NOT NULL,
+  amount              DECIMAL(18,2) NOT NULL CHECK (amount > 0),
+  balance_before      DECIMAL(18,2) NOT NULL,
+  balance_after       DECIMAL(18,2) NOT NULL,
+  recipient_id        UUID REFERENCES users(id),  -- for transfers
+  escrow_id           UUID REFERENCES escrows(id), -- for escrow operations
+  description         TEXT,
+  status              transaction_status NOT NULL DEFAULT 'completed',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_wallet_txn_user ON wallet_transactions(user_id, created_at DESC);
+CREATE INDEX idx_wallet_txn_type ON wallet_transactions(transaction_type);
+CREATE INDEX idx_wallet_txn_recipient ON wallet_transactions(recipient_id);
+
+-- ============================================================
+-- 12. LOCK DURATION COMPUTATION LOG
 -- Every T_lock computation stored for auditability
 -- ============================================================
 

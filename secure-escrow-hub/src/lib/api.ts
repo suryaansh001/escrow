@@ -60,6 +60,36 @@ export interface DashboardTransaction {
   createdAt: string;
 }
 
+export interface WalletBalance {
+  wallet_balance: number;
+  full_name: string;
+  email: string;
+}
+
+export interface WalletTransaction {
+  id: string;
+  transaction_type: string;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  recipient_name?: string;
+  recipient_email?: string;
+  description?: string;
+  status: string;
+  created_at: string;
+}
+
+export interface WalletOperation {
+  balance: number;
+  transactionId: string;
+}
+
+export interface TransferOperation {
+  fromBalance: number;
+  toBalance: number;
+  transactionId: string;
+}
+
 export interface DashboardData {
   user: DashboardUser;
   metrics: DashboardMetrics;
@@ -267,6 +297,29 @@ export const escrowApi = {
 
     return response.json();
   },
+
+  async fundEscrow(id: string) {
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/escrow/${id}/fund`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fund escrow');
+    }
+
+    return response.json();
+  },
 };
 
 // Disputes API calls
@@ -345,12 +398,17 @@ export const riskApi = {
     return response.json();
   },
 };
+
+// Wallet API calls
+export const walletApi = {
+  async getBalance(userId: string): Promise<{ success: boolean; data: WalletBalance }> {
+    const token = tokenStorage.getToken();
     
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/disputes`, {
+    const response = await fetch(`${API_BASE_URL}/wallet/${userId}/balance`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -360,20 +418,24 @@ export const riskApi = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch disputes');
+      throw new Error(error.error || 'Failed to fetch wallet balance');
     }
 
     return response.json();
   },
 
-  async getDisputeById(id: string) {
+  async getTransactionHistory(userId: string, limit?: number, offset?: number): Promise<{ success: boolean; data: WalletTransaction[] }> {
     const token = tokenStorage.getToken();
     
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/disputes/${id}`, {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (offset) params.append('offset', offset.toString());
+
+    const response = await fetch(`${API_BASE_URL}/wallet/${userId}/transactions?${params}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -383,31 +445,79 @@ export const riskApi = {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to fetch dispute');
+      throw new Error(error.error || 'Failed to fetch transaction history');
     }
 
     return response.json();
   },
 
-  async resolveDispute(id: string, resolved_in_favor_of: string, resolution_notes: string) {
+  async deposit(userId: string, amount: number, description?: string): Promise<{ success: boolean; data: WalletOperation }> {
     const token = tokenStorage.getToken();
     
     if (!token) {
       throw new Error('No authentication token found');
     }
 
-    const response = await fetch(`${API_BASE_URL}/disputes/${id}/resolve`, {
-      method: 'PATCH',
+    const response = await fetch(`${API_BASE_URL}/wallet/${userId}/deposit`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ resolved_in_favor_of, resolution_notes }),
+      body: JSON.stringify({ amount, description }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error || 'Failed to resolve dispute');
+      throw new Error(error.error || 'Failed to deposit funds');
+    }
+
+    return response.json();
+  },
+
+  async withdraw(userId: string, amount: number, description?: string): Promise<{ success: boolean; data: WalletOperation }> {
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/wallet/${userId}/withdraw`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ amount, description }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to withdraw funds');
+    }
+
+    return response.json();
+  },
+
+  async transfer(fromUserId: string, toUserId: string, amount: number, description?: string): Promise<{ success: boolean; data: TransferOperation }> {
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/wallet/${fromUserId}/transfer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ toUserId, amount, description }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to transfer funds');
     }
 
     return response.json();

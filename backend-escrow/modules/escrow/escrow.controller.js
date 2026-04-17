@@ -1,5 +1,6 @@
 import { sql } from '../../src/config/db.js';
 import { computeRiskScores, updateReliabilityScore } from '../risk/risk.services.js';
+import walletService from '../users/wallet.service.js';
 
 export async function createEscrow(req, res) {
     try {
@@ -176,7 +177,46 @@ export async function updateEscrowState(req, res) {
         console.error('Error updating escrow state:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-}   
+}
+
+export async function fundEscrow(req, res) {
+    try {
+        const { id } = req.params;
+        const userId = req.user.id;
+
+        // Get escrow details
+        const escrowData = await sql`
+            SELECT * FROM escrows
+            WHERE id = ${id} AND buyer_id = ${userId} AND state = 'created'
+        `;
+
+        if (escrowData.length === 0) {
+            return res.status(404).json({ error: 'Escrow not found or not in created state' });
+        }
+
+        const escrow = escrowData[0];
+
+        // Fund escrow from wallet
+        const walletResult = await walletService.fundEscrow(userId, id, escrow.amount);
+
+        // Update escrow state to funded
+        const updatedEscrow = await sql`
+            UPDATE escrows
+            SET state = 'funded', funded_at = NOW(), updated_at = NOW()
+            WHERE id = ${id}
+            RETURNING *
+        `;
+
+        res.status(200).json({
+            success: true,
+            escrow: updatedEscrow[0],
+            wallet: walletResult
+        });
+    } catch (error) {
+        console.error('Error funding escrow:', error);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+}
 
 async function updateScores(req, res) {
     try {

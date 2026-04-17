@@ -8,6 +8,7 @@ import settingsRoutes from '../modules/users/settings.routes.js';
 import disputeRoutes from '../modules/users/disputes.routes.js';
 import escrowRoutes from '../modules/escrow/escrow.routes.js';
 import riskRoutes from '../modules/risk/risk.routes.js';
+import walletRoutes from '../modules/users/wallet.routes.js';
 import { authMiddleware } from '../modules/auth/auth.middleware.js';
 
 dotenv.config();
@@ -42,6 +43,7 @@ app.use('/settings', settingsRoutes);
 app.use('/escrow', escrowRoutes);
 app.use('/disputes', disputeRoutes);
 app.use('/risk', riskRoutes);
+app.use('/wallet', walletRoutes);
 
 app.get("/healthz", (req, res) => {
     res.status(200).json({ status: "ok" });
