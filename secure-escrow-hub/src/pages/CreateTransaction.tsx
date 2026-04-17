@@ -1,19 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { RiskIndicator } from "@/components/common/RiskIndicator";
 import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
+import { dashboardApi } from "@/lib/api";
 
 interface CreateEscrowForm {
   amount: string;
-  counterparty: string;
+  counterpartyId: string;
   terms: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+  full_name: string;
 }
 
 const CreateTransaction = () => {
@@ -21,10 +29,12 @@ const CreateTransaction = () => {
   const [step, setStep] = useState<'form' | 'review' | 'confirmation'>('form');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
   const { createTransaction } = useAdaptiveEscrow();
   const [form, setForm] = useState<CreateEscrowForm>({
     amount: '',
-    counterparty: '',
+    counterpartyId: '',
     terms: '',
   });
 
@@ -33,6 +43,23 @@ const CreateTransaction = () => {
     score: 15,
     factors: [] as string[],
   });
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const res = await dashboardApi.listUsers();
+        if (res.success) {
+          setUsers(res.users || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch users:', error);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const handleInputChange = (field: keyof CreateEscrowForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -65,7 +92,7 @@ const CreateTransaction = () => {
   };
 
   const handleCreateTransaction = async () => {
-    if (!form.amount || !form.counterparty || !form.terms) {
+    if (!form.amount || !form.counterpartyId || !form.terms) {
       setError('Please fill in all required fields');
       return;
     }
@@ -74,9 +101,16 @@ const CreateTransaction = () => {
     setError(null);
 
     try {
+      const selectedUser = users.find(user => user.id === form.counterpartyId);
+      if (!selectedUser) {
+        setError('Selected counterparty not found');
+        setLoading(false);
+        return;
+      }
+
       createTransaction({
         amount: parseFloat(form.amount),
-        counterparty: form.counterparty,
+        counterparty: selectedUser.full_name,
         terms: form.terms,
       });
 
@@ -148,7 +182,9 @@ const CreateTransaction = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Counterparty</p>
-                    <p className="font-medium text-foreground">{form.counterparty}</p>
+                    <p className="font-medium text-foreground">
+                      {users.find(user => user.id === form.counterpartyId)?.full_name || 'Unknown'}
+                    </p>
                   </div>
                 </div>
                 <div>
@@ -231,14 +267,25 @@ const CreateTransaction = () => {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground block mb-2">Counterparty Name *</label>
-            <Input
-              type="text"
-              placeholder="Enter counterparty name"
-              value={form.counterparty}
-              onChange={(e) => handleInputChange('counterparty', e.target.value)}
-              className="rounded-xl"
-            />
+            <label className="text-sm font-medium text-foreground block mb-2">Counterparty *</label>
+            <Select value={form.counterpartyId} onValueChange={(value) => handleInputChange('counterpartyId', value)}>
+              <SelectTrigger className="rounded-xl">
+                <SelectValue placeholder={usersLoading ? "Loading users..." : "Select a counterparty"} />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.full_name} ({user.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {usersLoading && (
+              <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                <Loader className="h-3 w-3 animate-spin" />
+                Loading users...
+              </div>
+            )}
           </div>
 
           <div>
