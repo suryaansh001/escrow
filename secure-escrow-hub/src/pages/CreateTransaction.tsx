@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { RiskIndicator } from "@/components/common/RiskIndicator";
 import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
-import { dashboardApi } from "@/lib/api";
+import { dashboardApi, securityApi } from "@/lib/api";
 
 interface CreateEscrowForm {
   amount: string;

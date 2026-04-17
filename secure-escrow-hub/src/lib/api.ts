@@ -587,15 +587,75 @@ export const tokenStorage = {
 // Security PIN API calls
 export const securityApi = {
   async setPin(pin: string): Promise<{ message: string }> {
-    return api.post('/settings/security-pin', { pin });
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/settings/security-pin`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pin }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to set PIN');
+    }
+
+    return response.json();
   },
 
   async verifyPin(pin: string): Promise<{ message: string }> {
-    return api.post('/settings/security-pin/verify', { pin });
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/settings/security-pin/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pin }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to verify PIN');
+    }
+
+    return response.json();
   },
 
   async updatePin(currentPin: string, newPin: string): Promise<{ message: string }> {
-    return api.put('/settings/security-pin', { currentPin, newPin });
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/settings/security-pin`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPin, newPin }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update PIN');
+    }
+
+    return response.json();
   },
 };
 
