@@ -1,4 +1,5 @@
 import { sql } from "../../src/config/db.js";
+import bcrypt from 'bcrypt';
 import { info, error as _error } from "../../src/utils/logger.js";
 import { validateEmail, validatePhoneNumber } from "../../src/utils/validation.js";
 import { sendOtp } from "../../src/utils/otp.js";
@@ -103,4 +104,98 @@ async function verifyEmailChange(req, res) {
     }
 }
 
-export { updateuserProfile, verifyEmailChange };
+async function setSecurityPin(req, res) {
+    try {
+        const userId = req.user.id;
+        const { pin } = req.body;
+
+        if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+            return res.status(400).json({ error: 'Security PIN must be exactly 6 digits' });
+        }
+
+        const hashedPin = await bcrypt.hash(pin, 10);
+
+        await sql`
+            UPDATE users
+            SET security_pin_hash = ${hashedPin}, updated_at = NOW()
+            WHERE id = ${userId}
+        `;
+
+        info(`Security PIN set for user ${userId}`);
+        return res.status(200).json({ message: 'Security PIN set successfully' });
+    } catch (error) {
+        console.error('Error setting security PIN:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+async function verifySecurityPin(req, res) {
+    try {
+        const userId = req.user.id;
+        const { pin } = req.body;
+
+        if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+            return res.status(400).json({ error: 'Security PIN must be exactly 6 digits' });
+        }
+
+        const userData = await sql`SELECT security_pin_hash FROM users WHERE id = ${userId}`;
+        if (userData.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (!userData[0].security_pin_hash) {
+            return res.status(400).json({ error: 'Security PIN not set' });
+        }
+
+        const isValidPin = await bcrypt.compare(pin, userData[0].security_pin_hash);
+        if (!isValidPin) {
+            return res.status(401).json({ error: 'Invalid security PIN' });
+        }
+
+        return res.status(200).json({ message: 'Security PIN verified successfully' });
+    } catch (error) {
+        console.error('Error verifying security PIN:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+async function updateSecurityPin(req, res) {
+    try {
+        const userId = req.user.id;
+        const { currentPin, newPin } = req.body;
+
+        if (!currentPin || !newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+            return res.status(400).json({ error: 'Both current and new PINs must be exactly 6 digits' });
+        }
+
+        const userData = await sql`SELECT security_pin_hash FROM users WHERE id = ${userId}`;
+        if (userData.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (!userData[0].security_pin_hash) {
+            return res.status(400).json({ error: 'Security PIN not set' });
+        }
+
+        const isValidCurrentPin = await bcrypt.compare(currentPin, userData[0].security_pin_hash);
+        if (!isValidCurrentPin) {
+            return res.status(401).json({ error: 'Current security PIN is incorrect' });
+        }
+
+        const hashedNewPin = await bcrypt.hash(newPin, 10);
+
+        await sql`
+            UPDATE users
+            SET security_pin_hash = ${hashedNewPin}, updated_at = NOW()
+            WHERE id = ${userId}
+        `;
+
+        info(`Security PIN updated for user ${userId}`);
+        return res.status(200).json({ message: 'Security PIN updated successfully' });
+    } catch (error) {
+        console.error('Error updating security PIN:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export { updateuserProfile, verifyEmailChange, setSecurityPin, verifySecurityPin, updateSecurityPin };

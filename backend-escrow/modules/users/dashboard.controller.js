@@ -114,7 +114,36 @@ async function getDashboardData(req, res) {
     }
 }
 
-export { getDashboardData };
+async function getUserProfile(req, res) {
+    try {
+        const userId = req.user.id;
+
+        const userData = await sql`SELECT id, email, full_name, phone, kyc_status, bank_verified, reliability_score, status, security_pin_hash FROM users WHERE id = ${userId}`;
+
+        if (userData.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = userData[0];
+
+        return res.status(200).json({
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            phone: user.phone,
+            kyc_status: user.kyc_status,
+            bank_verified: user.bank_verified,
+            reliability_score: user.reliability_score,
+            status: user.status,
+            security_pin: !!user.security_pin_hash // Boolean indicating if PIN is set
+        });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+export { getDashboardData, getUserProfile };
 
 export async function listUsers(req, res) {
     try {

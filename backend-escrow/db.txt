@@ -55,6 +55,9 @@ CREATE TABLE users (
   wallet_balance      DECIMAL(18,2) NOT NULL DEFAULT 5000.00
                         CHECK (wallet_balance >= 0),
 
+  -- Security PIN for transaction authorization (hashed)
+  security_pin_hash   TEXT,
+
   -- Cold start phase flag — lifted after N successful transactions
   is_restricted_phase BOOLEAN NOT NULL DEFAULT TRUE,
 

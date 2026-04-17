@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
+import { useUser } from "@/context/UserContext";
 
 const sidebarItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -34,6 +35,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { notifications } = useAdaptiveEscrow();
+  const { user, logout } = useUser();
   const unreadCount = notifications.filter((item) => !item.read).length;
 
   return (
@@ -81,13 +83,20 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sm font-semibold text-sidebar-primary">
-              A
+              {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Arjun Mehta</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">arjun@example.com</p>
+              <p className="text-sm font-medium truncate">{user?.full_name || 'Loading...'}</p>
+              <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email || ''}</p>
             </div>
-            <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              className="text-sidebar-foreground/50 hover:text-sidebar-foreground"
+            >
+              Logout
+            </Button>
           </div>
         </div>
       </aside>

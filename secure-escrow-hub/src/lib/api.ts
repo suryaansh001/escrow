@@ -205,6 +205,29 @@ export const dashboardApi = {
     return response.json();
   },
 
+  async getUserProfile(): Promise<DashboardUser> {
+    const token = tokenStorage.getToken();
+
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/dashboard/profile`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch user profile');
+    }
+
+    return response.json();
+  },
+
   async listUsers() {
     const token = tokenStorage.getToken();
     if (!token) throw new Error('No authentication token found');
@@ -561,7 +584,21 @@ export const tokenStorage = {
   },
 };
 
-// Generic HTTP client
+// Security PIN API calls
+export const securityApi = {
+  async setPin(pin: string): Promise<{ message: string }> {
+    return api.post('/settings/security-pin', { pin });
+  },
+
+  async verifyPin(pin: string): Promise<{ message: string }> {
+    return api.post('/settings/security-pin/verify', { pin });
+  },
+
+  async updatePin(currentPin: string, newPin: string): Promise<{ message: string }> {
+    return api.put('/settings/security-pin', { currentPin, newPin });
+  },
+};
+
 export const api = {
   async request(method: string, endpoint: string, data?: any): Promise<any> {
     const token = tokenStorage.getToken();

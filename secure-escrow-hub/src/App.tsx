@@ -26,18 +26,20 @@ const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
 import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
 import { AdaptiveEscrowProvider } from "./context/AdaptiveEscrowContext";
+import { UserProvider } from "./context/UserContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AdaptiveEscrowProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
-            <Routes>
+    <UserProvider>
+      <AdaptiveEscrowProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+              <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/create-transaction" element={<CreateTransaction />} />
@@ -68,6 +70,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </AdaptiveEscrowProvider>
+    </UserProvider>
   </QueryClientProvider>
 );
 
