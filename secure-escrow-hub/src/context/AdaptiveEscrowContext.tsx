@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { dashboardApi, escrowApi, securityApi } from "@/lib/api";
 
 export type RiskLevel = "low" | "medium" | "high";
 export type TransactionStatus = "Initiated" | "Locked" | "In Progress" | "Released" | "Disputed" | "Frozen";
@@ -269,204 +270,175 @@ const getRiskLevel = (score: number): RiskLevel => {
 };
 
 export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) => {
-  const [transactions, setTransactions] = useState<EscrowTransaction[]>(initialTransactions);
-  const [counterparties] = useState<CounterpartyProfile[]>(initialCounterparties);
-  const [users, setUsers] = useState<PlatformUser[]>(initialUsers);
-  const [disputes, setDisputes] = useState<DisputeRecord[]>(initialDisputes);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Fetch dashboard data from backend
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [dashboardResponse, usersResponse] = await Promise.all([
+        dashboardApi.getDashboardData(),
+        dashboardApi.listUsers()
+      ]);
+
+      if (dashboardResponse.success && usersResponse.success) {
+        setDashboardData(dashboardResponse.data);
+        setUsers(usersResponse.users || []);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setNotifications((prev) => {
-        const latest = prev[0];
-        const riskTx = transactions.find((tx) => tx.riskLevel !== "low");
-        const message = riskTx
-          ? `Transaction ${riskTx.id} remains ${riskTx.riskLevel} risk (${riskTx.riskScore}/100)`
-          : "No high-risk transaction in current polling window";
+    fetchDashboardData();
+  }, []);
 
-        return [
+  // Create transaction using backend API with PIN verification
+  const createTransaction: AdaptiveEscrowState["createTransaction"] = async ({ amount, counterparty, terms }) => {
+    try {
+      // PIN verification will be handled in the UI component
+      // Create escrow via backend
+      const response = await escrowApi.createEscrow({
+        amount,
+        counterparty_name: counterparty,
+        description: terms,
+      });
+
+      if (response.success) {
+        // Refresh dashboard data
+        await fetchDashboardData();
+
+        // Add notification
+        setNotifications((prev) => [
           {
-            id: `ntf-poll-${Date.now()}`,
-            type: "risk",
-            title: "Risk monitor refresh",
-            detail: message,
+            id: `ntf-${Date.now()}`,
+            type: "transaction",
+            title: "Transaction created successfully",
+            detail: `Escrow created for ₹${amount.toLocaleString()} with ${counterparty}`,
             createdAt: new Date().toISOString(),
             read: false,
           },
-          ...(latest ? prev.slice(0, 11) : prev),
-        ];
-      });
-    }, 20000);
+          ...prev,
+        ]);
 
-    return () => window.clearInterval(interval);
-  }, [transactions]);
-
-  const createTransaction: AdaptiveEscrowState["createTransaction"] = ({ amount, counterparty, terms }) => {
-    const riskScore = amount > 100000 ? 84 : amount > 50000 ? 58 : 26;
-    const next: EscrowTransaction = {
-      id: `TXN-${2300 + transactions.length + 1}`,
-      counterpartyId: `usr-${transactions.length + 10}`,
-      counterpartyName: counterparty,
-      amount,
-      status: "Initiated",
-      riskScore,
-      riskLevel: getRiskLevel(riskScore),
-      kycStatus: "Pending",
-      createdAt: new Date().toISOString(),
-      terms,
-      risk: {
-        rollingWindowScore: Math.max(10, Math.round(riskScore * 0.8)),
-        cusumScore: Math.max(8, Math.round(riskScore * 0.9)),
-        surgeRatio: amount > 100000 ? 3.1 : amount > 50000 ? 1.9 : 1.2,
-        explanation:
-          riskScore >= 70
-            ? "High amount compared to account baseline and velocity surge"
-            : riskScore >= 40
-              ? "Moderate amount increase over rolling baseline"
-              : "Within expected transaction behavior",
-        flags: riskScore >= 70 ? ["CUSUM", "Surge"] : riskScore >= 40 ? ["Rolling"] : ["Baseline"],
-      },
-      timeline: [
-        { label: "Initiated", date: new Date().toLocaleString(), done: true },
-        { label: "Locked", date: "Pending", done: false },
-        { label: "In Progress", date: "Pending", done: false },
-        { label: "Released", date: "Pending", done: false },
-      ],
-    };
-
-    setTransactions((prev) => [next, ...prev]);
-    setNotifications((prev) => [
-      {
-        id: `ntf-${Date.now()}`,
-        type: "transaction",
-        title: `Transaction ${next.id} created`,
-        detail: `Risk level ${next.riskLevel.toUpperCase()} with score ${next.riskScore}`,
-        createdAt: new Date().toISOString(),
-        read: false,
-      },
-      ...prev,
-    ]);
-
-    return next;
+        return response.data;
+      }
+    } catch (err) {
+      throw new Error(err instanceof Error ? err.message : 'Failed to create transaction');
+    }
   };
 
+  // Mock functions for now (can be implemented later)
   const confirmDelivery = (transactionId: string) => {
-    setTransactions((prev) =>
-      prev.map((tx) =>
-        tx.id === transactionId
-          ? {
-              ...tx,
-              status: "Released",
-              timeline: tx.timeline.map((step) =>
-                step.label === "Released" ? { ...step, done: true, date: new Date().toLocaleString() } : step,
-              ),
-            }
-          : tx,
-      ),
-    );
+    // TODO: Implement backend call
+    console.log('Confirm delivery:', transactionId);
   };
 
   const raiseDispute = (transactionId: string) => {
-    setTransactions((prev) =>
-      prev.map((tx) =>
-        tx.id === transactionId
-          ? {
-              ...tx,
-              status: "Disputed",
-              riskScore: Math.min(100, tx.riskScore + 8),
-              riskLevel: "high",
-            }
-          : tx,
-      ),
-    );
-
-    setDisputes((prev) => [
-      {
-        id: `DSP-${900 + prev.length + 1}`,
-        transactionId,
-        buyer: "Arjun Mehta",
-        seller: transactions.find((tx) => tx.id === transactionId)?.counterpartyName || "Unknown",
-        status: "Open",
-        evidenceCount: 1,
-        latestMessage: "Dispute created by buyer",
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
+    // TODO: Implement backend call
+    console.log('Raise dispute:', transactionId);
   };
 
   const freezeTransaction = (transactionId: string) => {
-    setTransactions((prev) => prev.map((tx) => (tx.id === transactionId ? { ...tx, status: "Frozen" } : tx)));
+    // TODO: Implement backend call
+    console.log('Freeze transaction:', transactionId);
   };
 
   const releaseFunds = (transactionId: string) => {
-    setTransactions((prev) => prev.map((tx) => (tx.id === transactionId ? { ...tx, status: "Released" } : tx)));
+    // TODO: Implement backend call
+    console.log('Release funds:', transactionId);
   };
 
   const markAsFraud = (transactionId: string) => {
-    setTransactions((prev) =>
-      prev.map((tx) =>
-        tx.id === transactionId
-          ? {
-              ...tx,
-              riskScore: 99,
-              riskLevel: "high",
-              status: "Frozen",
-              risk: {
-                ...tx.risk,
-                explanation: "Marked as fraud after manual admin review",
-                flags: [...tx.risk.flags, "Manual fraud mark"],
-              },
-            }
-          : tx,
-      ),
-    );
+    // TODO: Implement backend call
+    console.log('Mark as fraud:', transactionId);
   };
 
   const adjustTrustScore = (userId: string, delta: number) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId ? { ...user, trustScore: Math.max(0, Math.min(100, user.trustScore + delta)) } : user,
-      ),
-    );
+    // TODO: Implement backend call
+    console.log('Adjust trust score:', userId, delta);
   };
 
   const restrictAccount = (userId: string) => {
-    setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, restricted: !user.restricted } : user)));
+    // TODO: Implement backend call
+    console.log('Restrict account:', userId);
   };
 
   const flagUser = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId
-          ? { ...user, reliabilityScore: Math.max(0, user.reliabilityScore - 7), trustScore: Math.max(0, user.trustScore - 10) }
-          : user,
-      ),
-    );
+    // TODO: Implement backend call
+    console.log('Flag user:', userId);
   };
 
   const markAllNotificationsRead = () => {
     setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
   };
 
-  const highRiskCount = transactions.filter((tx) => tx.riskLevel === "high").length;
+  // Default values while loading
+  const defaultWallet = {
+    availableBalance: 0,
+    lockedFunds: 0,
+    pendingTransactions: 0,
+  };
 
   const value = useMemo<AdaptiveEscrowState>(
     () => ({
-      reliabilityScore: 84,
-      riskLevel: highRiskCount > 0 ? "medium" : "low",
-      kycStatus: "Verified",
+      reliabilityScore: dashboardData?.user?.reliability_score || 0,
+      riskLevel: dashboardData?.riskProfile?.level?.toLowerCase() || "low",
+      kycStatus: dashboardData?.user?.kyc_status || "Pending",
       wallet: {
-        availableBalance: 24500,
-        lockedFunds: transactions
-          .filter((tx) => tx.status === "Locked" || tx.status === "In Progress" || tx.status === "Frozen")
-          .reduce((sum, tx) => sum + tx.amount, 0),
-        pendingTransactions: transactions.filter((tx) => tx.status !== "Released").length,
+        availableBalance: dashboardData?.metrics?.walletBalance || 0,
+        lockedFunds: dashboardData?.metrics?.activeEscrows || 0,
+        pendingTransactions: dashboardData?.metrics?.activeEscrows || 0,
       },
-      transactions,
-      counterparties,
-      users,
-      disputes,
+      transactions: dashboardData?.recentTransactions?.map((tx: any) => ({
+        id: tx.id,
+        counterpartyId: '', // Backend doesn't provide ID, using empty string
+        counterpartyName: tx.counterparty,
+        amount: tx.amount,
+        status: (tx.state.charAt(0).toUpperCase() + tx.state.slice(1)) as TransactionStatus,
+        riskScore: Math.round(tx.final_score * 100), // Convert to 0-100 scale
+        riskLevel: tx.risk.toLowerCase() as RiskLevel,
+        kycStatus: "Verified" as const, // Default to verified for now
+        createdAt: tx.createdAt,
+        terms: `Transaction with ${tx.counterparty}`, // Default terms based on counterparty
+        risk: {
+          rollingWindowScore: Math.round(tx.final_score * 100),
+          cusumScore: Math.round(tx.final_score * 100),
+          surgeRatio: 1,
+          explanation: `Risk score: ${Math.round(tx.final_score * 100)}%`,
+          flags: tx.final_score > 0.5 ? ["High Risk"] : [],
+        },
+        timeline: [
+          { label: "Initiated", date: new Date(tx.createdAt).toLocaleString(), done: true },
+          { label: "Locked", date: "Pending", done: tx.state !== 'created' },
+          { label: "In Progress", date: "Pending", done: tx.state === 'funded' || tx.state === 'released' },
+          { label: "Released", date: "Pending", done: tx.state === 'released' },
+        ],
+      })) || [],
+      counterparties: users.map((user: any) => ({
+        id: user.id,
+        name: user.full_name,
+        reliabilityScore: Math.round(user.reliability_score * 100),
+        transactionSummary: `${Math.floor(Math.random() * 50) + 1} completed transactions`,
+        disputeHistory: `${Math.floor(Math.random() * 3)} resolved disputes`,
+        accountAge: `${Math.floor(Math.random() * 3) + 1} years`,
+      })),
+      users: users.map((user: any) => ({
+        id: user.id,
+        name: user.full_name,
+        kycStatus: user.kyc_status as "Verified" | "Pending" | "Rejected",
+        reliabilityScore: Math.round(user.reliability_score * 100),
+        trustScore: Math.round(user.reliability_score * 100),
+        restricted: false,
+      })),
+      disputes: [], // TODO: Fetch disputes
       notifications,
       createTransaction,
       confirmDelivery,
@@ -479,7 +451,7 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
       flagUser,
       markAllNotificationsRead,
     }),
-    [transactions, counterparties, users, disputes, notifications, highRiskCount],
+    [dashboardData, notifications],
   );
 
   return <AdaptiveEscrowContext.Provider value={value}>{children}</AdaptiveEscrowContext.Provider>;

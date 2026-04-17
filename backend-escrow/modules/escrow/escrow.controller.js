@@ -1,11 +1,12 @@
 import { sql } from '../../src/config/db.js';
 import { computeRiskScores, updateReliabilityScore } from '../risk/risk.services.js';
 import walletService from '../users/wallet.service.js';
+import { sendTransactionNotification } from '../../src/utils/email.js';
 
 export async function createEscrow(req, res) {
     try {
         const userId = req.user.id;
-        const { seller_id, seller_email, amount, description, transaction_type, adaptive_risk } = req.body;
+        const { seller_id, counterparty_name, amount, description, transaction_type, adaptive_risk } = req.body;
         
         if (!amount) {
             return res.status(400).json({ error: 'Amount is required' });
@@ -13,17 +14,17 @@ export async function createEscrow(req, res) {
 
         let finalSellerId = seller_id;
 
-        // If seller_email is provided, look up the seller user
-        if (!seller_id && seller_email) {
-            const sellerUser = await sql`SELECT id FROM users WHERE email = ${seller_email}`;
+        // If counterparty_name is provided, look up the seller user by full_name
+        if (!seller_id && counterparty_name) {
+            const sellerUser = await sql`SELECT id FROM users WHERE full_name = ${counterparty_name}`;
             if (sellerUser.length === 0) {
-                return res.status(404).json({ error: 'Seller not found' });
+                return res.status(404).json({ error: 'Counterparty not found' });
             }
             finalSellerId = sellerUser[0].id;
         }
         
         if (!finalSellerId) {
-            return res.status(400).json({ error: 'Seller ID or Email is required' });
+            return res.status(400).json({ error: 'Seller ID or Counterparty name is required' });
         }
         
         if (userId === finalSellerId) {
@@ -47,11 +48,49 @@ export async function createEscrow(req, res) {
             return res.status(400).json({ error: 'Failed to create escrow' });
         }
         
+        // Get buyer and seller details for email notifications
+        const userDetails = await sql`
+            SELECT 
+                b.email as buyer_email, b.full_name as buyer_name,
+                s.email as seller_email, s.full_name as seller_name
+            FROM users b, users s 
+            WHERE b.id = ${userId} AND s.id = ${finalSellerId}
+        `;
+        
+        const buyerEmail = userDetails[0].buyer_email;
+        const sellerEmail = userDetails[0].seller_email;
+        const buyerName = userDetails[0].buyer_name;
+        const sellerName = userDetails[0].seller_name;
+        
         res.status(201).json({ 
             success: true,
             escrow: newEscrow[0],
             riskScores
         });
+
+        // Send email notifications asynchronously (don't block response)
+        try {
+            // Notify buyer
+            await sendTransactionNotification(buyerEmail, {
+                id: newEscrow[0].id,
+                amount: parseFloat(amount),
+                counterparty: sellerName,
+                status: 'Created',
+                type: 'Escrow Created'
+            });
+
+            // Notify seller
+            await sendTransactionNotification(sellerEmail, {
+                id: newEscrow[0].id,
+                amount: parseFloat(amount),
+                counterparty: buyerName,
+                status: 'Created',
+                type: 'Escrow Invitation'
+            });
+        } catch (emailError) {
+            console.error('Failed to send email notifications:', emailError);
+            // Don't fail the transaction if email fails
+        }
     } catch (error) {
         console.error('Error creating escrow:', error);
         res.status(500).json({ error: 'Internal server error', details: error.message });

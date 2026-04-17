@@ -16,12 +16,15 @@ interface CreateEscrowForm {
   amount: string;
   counterpartyId: string;
   terms: string;
+  pin: string;
 }
 
 interface User {
   id: string;
   email: string;
   full_name: string;
+  reliability_score?: number;
+  kyc_status?: string;
 }
 
 const CreateTransaction = () => {
@@ -36,6 +39,7 @@ const CreateTransaction = () => {
     amount: '',
     counterpartyId: '',
     terms: '',
+    pin: '',
   });
 
   const [riskPreview, setRiskPreview] = useState({
@@ -92,8 +96,13 @@ const CreateTransaction = () => {
   };
 
   const handleCreateTransaction = async () => {
-    if (!form.amount || !form.counterpartyId || !form.terms) {
-      setError('Please fill in all required fields');
+    if (!form.amount || !form.counterpartyId || !form.terms || !form.pin) {
+      setError('Please fill in all required fields including PIN');
+      return;
+    }
+
+    if (form.pin.length !== 6 || !/^\d{6}$/.test(form.pin)) {
+      setError('PIN must be exactly 6 digits');
       return;
     }
 
@@ -101,6 +110,9 @@ const CreateTransaction = () => {
     setError(null);
 
     try {
+      // First verify PIN
+      await securityApi.verifyPin(form.pin);
+
       const selectedUser = users.find(user => user.id === form.counterpartyId);
       if (!selectedUser) {
         setError('Selected counterparty not found');
@@ -286,6 +298,33 @@ const CreateTransaction = () => {
                 Loading users...
               </div>
             )}
+            {form.counterpartyId && (
+              <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                <p className="text-sm font-medium text-foreground mb-2">Counterparty Risk Profile</p>
+                {(() => {
+                  const selectedUser = users.find(user => user.id === form.counterpartyId);
+                  if (selectedUser) {
+                    const riskScore = selectedUser.reliability_score || 0;
+                    const riskLevel = riskScore > 70 ? 'low' : riskScore > 40 ? 'medium' : 'high';
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Risk Score:</span>
+                          <span className="text-sm font-medium">{riskScore}/100</span>
+                        </div>
+                        <RiskIndicator
+                          level={riskLevel as 'low' | 'medium' | 'high'}
+                          score={riskScore}
+                          reason={`Based on ${selectedUser.full_name}'s transaction history`}
+                          showTooltip={false}
+                        />
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            )}
           </div>
 
           <div>
@@ -296,6 +335,21 @@ const CreateTransaction = () => {
               onChange={(e) => handleInputChange('terms', e.target.value)}
               className="rounded-xl"
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-2">Security PIN (6 digits) *</label>
+            <Input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              placeholder="Enter your 6-digit PIN"
+              value={form.pin}
+              onChange={(e) => handleInputChange('pin', e.target.value)}
+              className="rounded-xl"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Required for transaction authorization</p>
           </div>
 
           <div>

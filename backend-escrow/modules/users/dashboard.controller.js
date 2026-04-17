@@ -149,7 +149,7 @@ export async function listUsers(req, res) {
     try {
         const userId = req.user.id;
         const users = await sql`
-            SELECT id, email, full_name FROM users 
+            SELECT id, email, full_name, reliability_score, kyc_status FROM users 
             WHERE id != ${userId}
             ORDER BY full_name ASC
         `;
