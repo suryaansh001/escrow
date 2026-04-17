@@ -25,6 +25,9 @@ const CreateEscrow = () => {
   const [merchants, setMerchants] = useState<{ id: string; email: string; full_name: string }[]>([]);
   const [merchantsLoading, setMerchantsLoading] = useState(false);
   
+  // Risk scores state
+  const [riskScores, setRiskScores] = useState<any>(null);
+  
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -73,8 +76,10 @@ const CreateEscrow = () => {
       });
 
       if (response.success) {
-        setSuccess("Escrow created successfully!");
-        setTimeout(() => navigate("/dashboard"), 1500);
+        setRiskScores(response.riskScores);
+        setSuccess(`Escrow created successfully! Risk Level: ${response.riskScores?.riskLevel}`);
+        // Don't auto-navigate, show risk scores first
+        // setTimeout(() => navigate("/dashboard"), 1500);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create escrow");
@@ -103,6 +108,47 @@ const CreateEscrow = () => {
             <Check className="h-4 w-4 text-accent" />
             <AlertDescription className="text-accent">{success}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Risk Scores Display */}
+        {riskScores && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card-fintech mb-6"
+          >
+            <h3 className="text-base font-semibold font-display text-foreground mb-4">Risk Assessment</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Final Score</p>
+                <p className="font-bold text-foreground">{(riskScores.finalScore * 100).toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Rolling Score</p>
+                <p className="font-bold text-foreground">{(riskScores.rollingScore * 100).toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">CUSUM Score</p>
+                <p className="font-bold text-foreground">{(riskScores.cusumScore * 100).toFixed(1)}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Surge Score</p>
+                <p className="font-bold text-foreground">{(riskScores.surgeScore * 100).toFixed(1)}%</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Risk Level: </span>
+                <span className={`font-semibold ${
+                  riskScores.riskLevel === 'Normal' ? 'text-green-600' :
+                  riskScores.riskLevel === 'Monitor' ? 'text-yellow-600' :
+                  riskScores.riskLevel === 'Restrict' ? 'text-orange-600' : 'text-red-600'
+                }`}>
+                  {riskScores.riskLevel}
+                </span>
+              </p>
+            </div>
+          </motion.div>
         )}
 
         {/* Progress */}

@@ -1,4 +1,5 @@
 import { sql } from '../../src/config/db.js';
+import { computeRiskScores, updateReliabilityScore } from '../risk/risk.services.js';
 
 export async function createEscrow(req, res) {
     try {
@@ -31,10 +32,13 @@ export async function createEscrow(req, res) {
         if (amount <= 0) {
             return res.status(400).json({ error: 'Amount must be greater than 0' });
         }
+        // Compute risk scores for the buyer
+        const riskScores = await computeRiskScores(userId, parseFloat(amount));
         
         const newEscrow = await sql`
-            INSERT INTO escrows (buyer_id, seller_id, amount, description, state) 
-            VALUES (${userId}, ${finalSellerId}, ${amount}, ${description || null}, 'created') 
+            INSERT INTO escrows (buyer_id, seller_id, amount, description, state, buyer_r_at_creation, suspicion_f_at_lock) 
+            VALUES (${userId}, ${finalSellerId}, ${amount}, ${description || null}, 'created', 
+                    (SELECT reliability_score FROM users WHERE id = ${userId}), ${riskScores.finalScore}) 
             RETURNING *
         `;
         
@@ -44,7 +48,8 @@ export async function createEscrow(req, res) {
         
         res.status(201).json({ 
             success: true,
-            escrow: newEscrow[0] 
+            escrow: newEscrow[0],
+            riskScores
         });
     } catch (error) {
         console.error('Error creating escrow:', error);
@@ -57,16 +62,41 @@ export async function getEscrowById(req, res) {
         const { id } = req.params;
         const userId = req.user.id;
         
-        const escrow = await sql`
-            SELECT * FROM escrows 
-            WHERE id = ${id} AND (buyer_id = ${userId} OR seller_id = ${userId})
+        const escrowData = await sql`
+            SELECT 
+                e.*,
+                b.email as buyer_email, b.full_name as buyer_name, b.reliability_score as buyer_reliability,
+                s.email as seller_email, s.full_name as seller_name, s.reliability_score as seller_reliability
+            FROM escrows e
+            JOIN users b ON e.buyer_id = b.id
+            JOIN users s ON e.seller_id = s.id
+            WHERE e.id = ${id} AND (e.buyer_id = ${userId} OR e.seller_id = ${userId})
         `;
         
-        if (escrow.length === 0) {
+        if (escrowData.length === 0) {
             return res.status(404).json({ error: 'Escrow not found' });
         }
         
-        res.status(200).json({ success: true, escrow: escrow[0] });
+        const escrow = escrowData[0];
+        
+        res.status(200).json({ 
+            success: true, 
+            escrow: {
+                ...escrow,
+                buyer: {
+                    id: escrow.buyer_id,
+                    email: escrow.buyer_email,
+                    full_name: escrow.buyer_name,
+                    reliability_score: escrow.buyer_reliability
+                },
+                seller: {
+                    id: escrow.seller_id,
+                    email: escrow.seller_email,
+                    full_name: escrow.seller_name,
+                    reliability_score: escrow.seller_reliability
+                }
+            }
+        });
     } catch (error) {
         console.error('Error fetching escrow:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -77,11 +107,31 @@ export async function getEscrowsByUserId(req, res) {
     try {
         const userId = req.user.id;
         
-        const escrows = await sql`
-            SELECT * FROM escrows 
-            WHERE buyer_id = ${userId} OR seller_id = ${userId}
-            ORDER BY created_at DESC
+        const escrowsData = await sql`
+            SELECT 
+                e.*,
+                b.email as buyer_email, b.full_name as buyer_name,
+                s.email as seller_email, s.full_name as seller_name
+            FROM escrows e
+            JOIN users b ON e.buyer_id = b.id
+            JOIN users s ON e.seller_id = s.id
+            WHERE e.buyer_id = ${userId} OR e.seller_id = ${userId}
+            ORDER BY e.created_at DESC
         `;
+        
+        const escrows = escrowsData.map(escrow => ({
+            ...escrow,
+            buyer: {
+                id: escrow.buyer_id,
+                email: escrow.buyer_email,
+                full_name: escrow.buyer_name
+            },
+            seller: {
+                id: escrow.seller_id,
+                email: escrow.seller_email,
+                full_name: escrow.seller_name
+            }
+        }));
         
         res.status(200).json({ success: true, escrows });
     } catch (error) {

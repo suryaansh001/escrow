@@ -11,10 +11,46 @@ import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 const TransactionDetails = () => {
   const { id } = useParams();
   const { transactions, confirmDelivery, raiseDispute } = useAdaptiveEscrow();
+  const [escrowData, setEscrowData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const transaction = useMemo(() => transactions.find((item) => item.id === id) || transactions[0], [transactions, id]);
+  useEffect(() => {
+    const fetchEscrowDetails = async () => {
+      try {
+        const response = await escrowApi.getEscrowById(id!);
+        if (response.success) {
+          setEscrowData(response.escrow);
+        }
+      } catch (error) {
+        console.error('Failed to fetch escrow details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!transaction) {
+    if (id) {
+      fetchEscrowDetails();
+    }
+  }, [id]);
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/3 mb-6"></div>
+            <div className="card-fintech space-y-4">
+              <div className="h-4 bg-muted rounded w-full"></div>
+              <div className="h-4 bg-muted rounded w-3/4"></div>
+              <div className="h-4 bg-muted rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!escrowData) {
     return (
       <DashboardLayout>
         <div className="max-w-4xl mx-auto">
@@ -32,10 +68,10 @@ const TransactionDetails = () => {
             <Link to="/dashboard"><ArrowLeft className="h-4 w-4" /></Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold font-display text-foreground">{transaction.id}</h1>
+            <h1 className="text-2xl font-bold font-display text-foreground">{escrowData.id}</h1>
             <p className="text-muted-foreground text-sm">Transaction Details</p>
           </div>
-          <span className="ml-auto status-badge bg-primary/10 text-primary">{transaction.status}</span>
+          <span className="ml-auto status-badge bg-primary/10 text-primary">{escrowData.state}</span>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -52,27 +88,27 @@ const TransactionDetails = () => {
                   <p className="text-muted-foreground mb-1">Buyer</p>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-foreground">Arjun Mehta</span>
+                    <span className="font-medium text-foreground">{escrowData.buyer?.full_name || escrowData.buyer?.email || 'Unknown'}</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Seller</p>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-accent" />
-                    <span className="font-medium text-foreground">{transaction.counterpartyName}</span>
+                    <span className="font-medium text-foreground">{escrowData.seller?.full_name || escrowData.seller?.email || 'Unknown'}</span>
                   </div>
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Amount</p>
-                  <span className="font-bold text-foreground text-lg">₹{transaction.amount.toLocaleString()}</span>
+                  <span className="font-bold text-foreground text-lg">₹{escrowData.amount?.toLocaleString()}</span>
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-1">KYC</p>
-                  <span className="font-medium text-foreground">{transaction.kycStatus}</span>
+                  <p className="text-muted-foreground mb-1">Status</p>
+                  <span className="font-medium text-foreground">{escrowData.state}</span>
                 </div>
               </div>
               <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground">Terms: {transaction.terms}</p>
+                <p className="text-sm text-muted-foreground">{escrowData.description || 'No description provided'}</p>
               </div>
             </motion.div>
 

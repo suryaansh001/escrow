@@ -317,6 +317,54 @@ export const disputeApi = {
 
     return response.json();
   },
+};
+
+// Risk API calls
+export const riskApi = {
+  async computeRisk(data: { user_id: string; amount: number }) {
+    const token = tokenStorage.getToken();
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/risk/compute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to compute risk');
+    }
+
+    return response.json();
+  },
+};
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/disputes`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch disputes');
+    }
+
+    return response.json();
+  },
 
   async getDisputeById(id: string) {
     const token = tokenStorage.getToken();

@@ -6,7 +6,8 @@
   "main": "index.js",
   "scripts": {
     "setup-db": "node scripts/setup-db.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node scripts/test-system.js",
+    "seed": "node scripts/seed-sample-data.js"
   },
   "keywords": [],
   "author": "",

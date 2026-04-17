@@ -41,11 +41,13 @@ async function getDashboardData(req, res) {
         // Calculate risk score (0-100 based on reliability score)
         const riskScore = Math.round((1 - user.reliability_score) * 100);
         
-        // Determine risk level
+        // Determine risk level based on new mapping
         const getRiskLevel = (score) => {
-            if (score <= 30) return 'Low';
-            if (score <= 60) return 'Medium';
-            return 'High';
+            const finalScore = score / 100; // Convert to 0-1 scale
+            if (finalScore <= 0.3) return 'Normal';
+            if (finalScore <= 0.55) return 'Monitor';
+            if (finalScore <= 0.75) return 'Restrict';
+            return 'Freeze';
         };
         
         const riskLevel = getRiskLevel(riskScore);
@@ -61,11 +63,10 @@ async function getDashboardData(req, res) {
                     WHEN e.buyer_id = ${userId} THEN u2.full_name
                     ELSE u1.full_name
                 END as counterparty,
-                ROUND((1 - COALESCE(
-                    CASE 
-                        WHEN e.buyer_id = ${userId} THEN e.seller_r_at_creation
-                        ELSE e.buyer_r_at_creation
-                    END, 0.5)) * 100) as risk
+                CASE 
+                    WHEN e.buyer_id = ${userId} THEN e.suspicion_f_at_lock
+                    ELSE 0.0
+                END as final_score
             FROM escrows e
             LEFT JOIN users u1 ON e.buyer_id = u1.id
             LEFT JOIN users u2 ON e.seller_id = u2.id
@@ -100,7 +101,7 @@ async function getDashboardData(req, res) {
                 counterparty: tx.counterparty,
                 amount: parseFloat(tx.amount),
                 state: tx.state,
-                risk: getRiskLevel(parseInt(tx.risk)),
+                risk: getRiskLevel(tx.final_score * 100), // Convert back to 0-100 scale for display
                 createdAt: tx.createdAt
             }))
         };
