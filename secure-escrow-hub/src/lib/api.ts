@@ -1,4 +1,22 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://escrow-beta.vercel.app';
+// Determine API URL based on current hostname
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+
+  // Production deployments
+  if (hostname === 'sea-escrow.vercel.app') {
+    return 'https://escrow-beta.vercel.app';
+  }
+
+  // Local development
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3000';
+  }
+
+  // Fallback to environment variable or default
+  return import.meta.env.VITE_API_URL || 'https://escrow-beta.vercel.app';
+};
+
+const API_BASE_URL = getApiUrl();
 
 export interface LoginRequest {
   email: string;
