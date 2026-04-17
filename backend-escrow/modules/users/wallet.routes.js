@@ -1,11 +1,11 @@
-const express = require('express');
-const walletController = require('./wallet.controller');
-const { authenticateToken } = require('../auth/auth.middleware');
+import express from 'express';
+import walletController from './wallet.controller.js';
+import { authMiddleware } from '../auth/auth.middleware.js';
 
 const router = express.Router();
 
 // All wallet routes require authentication
-router.use(authenticateToken);
+router.use(authMiddleware);
 
 /**
  * @route GET /api/wallet/:userId/balance
