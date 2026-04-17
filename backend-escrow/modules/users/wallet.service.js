@@ -1,4 +1,4 @@
-import db from '../db';
+import { sql } from '../../src/config/db.js';
 import { v4 as uuidv4 } from 'uuid';
 
 class WalletService {
@@ -6,23 +6,22 @@ class WalletService {
    * Get user wallet balance
    */
   async getBalance(userId) {
-    const query = `
+    const result = await sql`
       SELECT wallet_balance, full_name, email
       FROM users
-      WHERE id = $1
+      WHERE id = ${userId}
     `;
-    const result = await db.query(query, [userId]);
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       throw new Error('User not found');
     }
-    return result.rows[0];
+    return result[0];
   }
 
   /**
    * Get wallet transaction history
    */
   async getTransactionHistory(userId, limit = 50, offset = 0) {
-    const query = `
+    const result = await sql`
       SELECT
         wt.id,
         wt.transaction_type,
@@ -42,12 +41,11 @@ class WalletService {
         END as recipient_email
       FROM wallet_transactions wt
       LEFT JOIN users u ON wt.recipient_id = u.id
-      WHERE wt.user_id = $1
+      WHERE wt.user_id = ${userId}
       ORDER BY wt.created_at DESC
-      LIMIT $2 OFFSET $3
+      LIMIT ${limit} OFFSET ${offset}
     `;
-    const result = await db.query(query, [userId, limit, offset]);
-    return result.rows;
+    return result;
   }
 
   /**
@@ -58,41 +56,32 @@ class WalletService {
       throw new Error('Deposit amount must be positive');
     }
 
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-
+    return await sql.begin(async (sql) => {
       // Get current balance
-      const balanceQuery = 'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE';
-      const balanceResult = await client.query(balanceQuery, [userId]);
-      if (balanceResult.rows.length === 0) {
+      const balanceResult = await sql`
+        SELECT wallet_balance FROM users WHERE id = ${userId} FOR UPDATE
+      `;
+      if (balanceResult.length === 0) {
         throw new Error('User not found');
       }
-      const balanceBefore = parseFloat(balanceResult.rows[0].wallet_balance);
+      const balanceBefore = parseFloat(balanceResult[0].wallet_balance);
 
       // Update balance
       const newBalance = balanceBefore + amount;
-      const updateQuery = 'UPDATE users SET wallet_balance = $1, updated_at = NOW() WHERE id = $2';
-      await client.query(updateQuery, [newBalance, userId]);
+      await sql`
+        UPDATE users SET wallet_balance = ${newBalance}, updated_at = NOW() WHERE id = ${userId}
+      `;
 
       // Record transaction
-      const transactionQuery = `
+      const transactionResult = await sql`
         INSERT INTO wallet_transactions (
           user_id, transaction_type, amount, balance_before, balance_after, description, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ) VALUES (${userId}, 'deposit', ${amount}, ${balanceBefore}, ${newBalance}, ${description}, 'completed')
+        RETURNING id
       `;
-      await client.query(transactionQuery, [
-        userId, 'deposit', amount, balanceBefore, newBalance, description, 'completed'
-      ]);
 
-      await client.query('COMMIT');
-      return { balance: newBalance, transactionId: uuidv4() };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { balance: newBalance, transactionId: transactionResult[0].id };
+    });
   }
 
   /**
@@ -103,17 +92,15 @@ class WalletService {
       throw new Error('Withdrawal amount must be positive');
     }
 
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-
+    return await sql.begin(async (sql) => {
       // Get current balance
-      const balanceQuery = 'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE';
-      const balanceResult = await client.query(balanceQuery, [userId]);
-      if (balanceResult.rows.length === 0) {
+      const balanceResult = await sql`
+        SELECT wallet_balance FROM users WHERE id = ${userId} FOR UPDATE
+      `;
+      if (balanceResult.length === 0) {
         throw new Error('User not found');
       }
-      const balanceBefore = parseFloat(balanceResult.rows[0].wallet_balance);
+      const balanceBefore = parseFloat(balanceResult[0].wallet_balance);
 
       if (balanceBefore < amount) {
         throw new Error('Insufficient funds');
@@ -121,27 +108,20 @@ class WalletService {
 
       // Update balance
       const newBalance = balanceBefore - amount;
-      const updateQuery = 'UPDATE users SET wallet_balance = $1, updated_at = NOW() WHERE id = $2';
-      await client.query(updateQuery, [newBalance, userId]);
+      await sql`
+        UPDATE users SET wallet_balance = ${newBalance}, updated_at = NOW() WHERE id = ${userId}
+      `;
 
       // Record transaction
-      const transactionQuery = `
+      const transactionResult = await sql`
         INSERT INTO wallet_transactions (
           user_id, transaction_type, amount, balance_before, balance_after, description, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ) VALUES (${userId}, 'withdrawal', ${amount}, ${balanceBefore}, ${newBalance}, ${description}, 'completed')
+        RETURNING id
       `;
-      await client.query(transactionQuery, [
-        userId, 'withdrawal', amount, balanceBefore, newBalance, description, 'completed'
-      ]);
 
-      await client.query('COMMIT');
-      return { balance: newBalance, transactionId: uuidv4() };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { balance: newBalance, transactionId: transactionResult[0].id };
+    });
   }
 
   /**
@@ -155,25 +135,21 @@ class WalletService {
       throw new Error('Cannot transfer to yourself');
     }
 
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-
+    return await sql.begin(async (sql) => {
       // Lock both user balances
-      const balanceQuery = `
+      const balanceResult = await sql`
         SELECT id, wallet_balance, full_name
         FROM users
-        WHERE id IN ($1, $2)
+        WHERE id IN (${fromUserId}, ${toUserId})
         ORDER BY id
         FOR UPDATE
       `;
-      const balanceResult = await client.query(balanceQuery, [fromUserId, toUserId]);
-      if (balanceResult.rows.length !== 2) {
+      if (balanceResult.length !== 2) {
         throw new Error('One or both users not found');
       }
 
-      const fromUser = balanceResult.rows.find(u => u.id === fromUserId);
-      const toUser = balanceResult.rows.find(u => u.id === toUserId);
+      const fromUser = balanceResult.find(u => u.id === fromUserId);
+      const toUser = balanceResult.find(u => u.id === toUserId);
 
       const fromBalanceBefore = parseFloat(fromUser.wallet_balance);
       const toBalanceBefore = parseFloat(toUser.wallet_balance);
@@ -186,41 +162,33 @@ class WalletService {
       const fromNewBalance = fromBalanceBefore - amount;
       const toNewBalance = toBalanceBefore + amount;
 
-      const updateQuery = 'UPDATE users SET wallet_balance = $1, updated_at = NOW() WHERE id = $2';
-      await client.query(updateQuery, [fromNewBalance, fromUserId]);
-      await client.query(updateQuery, [toNewBalance, toUserId]);
-
-      // Record transactions for both users
-      const transactionQuery = `
-        INSERT INTO wallet_transactions (
-          user_id, transaction_type, amount, balance_before, balance_after, recipient_id, description, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      await sql`
+        UPDATE users SET wallet_balance = ${fromNewBalance}, updated_at = NOW() WHERE id = ${fromUserId}
+      `;
+      await sql`
+        UPDATE users SET wallet_balance = ${toNewBalance}, updated_at = NOW() WHERE id = ${toUserId}
       `;
 
-      // Sender transaction
-      await client.query(transactionQuery, [
-        fromUserId, 'transfer_sent', amount, fromBalanceBefore, fromNewBalance,
-        toUserId, description, 'completed'
-      ]);
+      // Record transactions for both users
+      const senderTransaction = await sql`
+        INSERT INTO wallet_transactions (
+          user_id, transaction_type, amount, balance_before, balance_after, recipient_id, description, status
+        ) VALUES (${fromUserId}, 'transfer_sent', ${amount}, ${fromBalanceBefore}, ${fromNewBalance}, ${toUserId}, ${description}, 'completed')
+        RETURNING id
+      `;
 
-      // Receiver transaction
-      await client.query(transactionQuery, [
-        toUserId, 'transfer_received', amount, toBalanceBefore, toNewBalance,
-        fromUserId, description, 'completed'
-      ]);
+      await sql`
+        INSERT INTO wallet_transactions (
+          user_id, transaction_type, amount, balance_before, balance_after, recipient_id, description, status
+        ) VALUES (${toUserId}, 'transfer_received', ${amount}, ${toBalanceBefore}, ${toNewBalance}, ${fromUserId}, ${description}, 'completed')
+      `;
 
-      await client.query('COMMIT');
       return {
         fromBalance: fromNewBalance,
         toBalance: toNewBalance,
-        transactionId: uuidv4()
+        transactionId: senderTransaction[0].id
       };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
   }
 
   /**
@@ -231,17 +199,15 @@ class WalletService {
       throw new Error('Funding amount must be positive');
     }
 
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-
+    return await sql.begin(async (sql) => {
       // Get current balance
-      const balanceQuery = 'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE';
-      const balanceResult = await client.query(balanceQuery, [userId]);
-      if (balanceResult.rows.length === 0) {
+      const balanceResult = await sql`
+        SELECT wallet_balance FROM users WHERE id = ${userId} FOR UPDATE
+      `;
+      if (balanceResult.length === 0) {
         throw new Error('User not found');
       }
-      const balanceBefore = parseFloat(balanceResult.rows[0].wallet_balance);
+      const balanceBefore = parseFloat(balanceResult[0].wallet_balance);
 
       if (balanceBefore < amount) {
         throw new Error('Insufficient funds');
@@ -249,113 +215,86 @@ class WalletService {
 
       // Update balance
       const newBalance = balanceBefore - amount;
-      const updateQuery = 'UPDATE users SET wallet_balance = $1, updated_at = NOW() WHERE id = $2';
-      await client.query(updateQuery, [newBalance, userId]);
+      await sql`
+        UPDATE users SET wallet_balance = ${newBalance}, updated_at = NOW() WHERE id = ${userId}
+      `;
 
       // Record transaction
-      const transactionQuery = `
+      const transactionResult = await sql`
         INSERT INTO wallet_transactions (
           user_id, transaction_type, amount, balance_before, balance_after, escrow_id, description, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES (${userId}, 'escrow_funded', ${amount}, ${balanceBefore}, ${newBalance}, ${escrowId}, ${`Funded escrow ${escrowId}`}, 'completed')
+        RETURNING id
       `;
-      await client.query(transactionQuery, [
-        userId, 'escrow_funded', amount, balanceBefore, newBalance,
-        escrowId, `Funded escrow ${escrowId}`, 'completed'
-      ]);
 
-      await client.query('COMMIT');
-      return { balance: newBalance, transactionId: uuidv4() };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { balance: newBalance, transactionId: transactionResult[0].id };
+    });
   }
 
   /**
    * Release escrow funds to recipient
    */
   async releaseEscrowFunds(escrowId, recipientId, amount) {
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-
+    return await sql.begin(async (sql) => {
       // Get recipient balance
-      const balanceQuery = 'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE';
-      const balanceResult = await client.query(balanceQuery, [recipientId]);
-      if (balanceResult.rows.length === 0) {
+      const balanceResult = await sql`
+        SELECT wallet_balance FROM users WHERE id = ${recipientId} FOR UPDATE
+      `;
+      if (balanceResult.length === 0) {
         throw new Error('Recipient not found');
       }
-      const balanceBefore = parseFloat(balanceResult.rows[0].wallet_balance);
+      const balanceBefore = parseFloat(balanceResult[0].wallet_balance);
 
       // Update recipient balance
       const newBalance = balanceBefore + amount;
-      const updateQuery = 'UPDATE users SET wallet_balance = $1, updated_at = NOW() WHERE id = $2';
-      await client.query(updateQuery, [newBalance, recipientId]);
+      await sql`
+        UPDATE users SET wallet_balance = ${newBalance}, updated_at = NOW() WHERE id = ${recipientId}
+      `;
 
       // Record transaction
-      const transactionQuery = `
+      const transactionResult = await sql`
         INSERT INTO wallet_transactions (
           user_id, transaction_type, amount, balance_before, balance_after, escrow_id, description, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES (${recipientId}, 'escrow_released', ${amount}, ${balanceBefore}, ${newBalance}, ${escrowId}, ${`Escrow funds released ${escrowId}`}, 'completed')
+        RETURNING id
       `;
-      await client.query(transactionQuery, [
-        recipientId, 'escrow_released', amount, balanceBefore, newBalance,
-        escrowId, `Escrow funds released ${escrowId}`, 'completed'
-      ]);
 
-      await client.query('COMMIT');
-      return { balance: newBalance, transactionId: uuidv4() };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { balance: newBalance, transactionId: transactionResult[0].id };
+    });
   }
 
   /**
    * Refund escrow funds to buyer
    */
   async refundEscrowFunds(escrowId, buyerId, amount) {
-    const client = await db.getClient();
-    try {
-      await client.query('BEGIN');
-
+    return await sql.begin(async (sql) => {
       // Get buyer balance
-      const balanceQuery = 'SELECT wallet_balance FROM users WHERE id = $1 FOR UPDATE';
-      const balanceResult = await client.query(balanceQuery, [buyerId]);
-      if (balanceResult.rows.length === 0) {
+      const balanceResult = await sql`
+        SELECT wallet_balance FROM users WHERE id = ${buyerId} FOR UPDATE
+      `;
+      if (balanceResult.length === 0) {
         throw new Error('Buyer not found');
       }
-      const balanceBefore = parseFloat(balanceResult.rows[0].wallet_balance);
+      const balanceBefore = parseFloat(balanceResult[0].wallet_balance);
 
       // Update buyer balance
       const newBalance = balanceBefore + amount;
-      const updateQuery = 'UPDATE users SET wallet_balance = $1, updated_at = NOW() WHERE id = $2';
-      await client.query(updateQuery, [newBalance, buyerId]);
+      await sql`
+        UPDATE users SET wallet_balance = ${newBalance}, updated_at = NOW() WHERE id = ${buyerId}
+      `;
 
       // Record transaction
-      const transactionQuery = `
+      const transactionResult = await sql`
         INSERT INTO wallet_transactions (
           user_id, transaction_type, amount, balance_before, balance_after, escrow_id, description, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES (${buyerId}, 'escrow_refunded', ${amount}, ${balanceBefore}, ${newBalance}, ${escrowId}, ${`Escrow funds refunded ${escrowId}`}, 'completed')
+        RETURNING id
       `;
-      await client.query(transactionQuery, [
-        buyerId, 'escrow_refunded', amount, balanceBefore, newBalance,
-        escrowId, `Escrow funds refunded ${escrowId}`, 'completed'
-      ]);
 
-      await client.query('COMMIT');
-      return { balance: newBalance, transactionId: uuidv4() };
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+      return { balance: newBalance, transactionId: transactionResult[0].id };
+    });
   }
+}
 }
 
 export default new WalletService();

@@ -13,6 +13,16 @@
     }
   ],
   "env": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "FRONTEND_URL": "https://sea-escrow.vercel.app",
+    "DATABASE_URL": "postgresql://neondb_owner:npg_pJf6LbC3gUKY@ep-aged-heart-a1kz87tz-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
+    "JWT_SECRET": "your-super-secret-key-min-32-chars",
+    "JWT_EXPIRY": "24h",
+    "EMAILJS_SERVICE_ID": "service_17huid4",
+    "EMAILJS_TEMPLATE_ID": "template_jdhy5wo",
+    "EMAILJS_PUBLIC_KEY": "2Itbk47jDfqMOnSo8",
+    "EMAILJS_PRIVATE_KEY": "ohswsIaBexPb2_67TYEX6",
+    "SUPABASE_URL": "https://ufnojxuukubxebmxlzto.supabase.co",
+    "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmbm9qeHV1a3VieGVibXhsenRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTkzNDEsImV4cCI6MjA4Nzg3NTM0MX0.j2JWEK0p6dNKie_vu9pTt2ZdGj35DdvWQSSDZADt-Rg"
   }
 }

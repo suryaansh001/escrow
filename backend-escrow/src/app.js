@@ -26,17 +26,7 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('CORS not allowed'));
-    }
-  },
+  origin: true, // Allow all origins for now
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
