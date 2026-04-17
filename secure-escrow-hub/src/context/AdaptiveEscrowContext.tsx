@@ -388,40 +388,73 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
   };
 
   const value = useMemo<AdaptiveEscrowState>(
-    () => ({
-      reliabilityScore: dashboardData?.user?.reliability_score || 0,
-      riskLevel: dashboardData?.riskProfile?.level?.toLowerCase() || "low",
-      kycStatus: dashboardData?.user?.kyc_status || "Pending",
-      wallet: {
-        availableBalance: dashboardData?.metrics?.walletBalance || 0,
-        lockedFunds: dashboardData?.metrics?.activeEscrows || 0,
-        pendingTransactions: dashboardData?.metrics?.activeEscrows || 0,
-      },
-      transactions: dashboardData?.recentTransactions?.map((tx: any) => ({
-        id: tx.id,
-        counterpartyId: '', // Backend doesn't provide ID, using empty string
-        counterpartyName: tx.counterparty,
-        amount: tx.amount,
-        status: (tx.state.charAt(0).toUpperCase() + tx.state.slice(1)) as TransactionStatus,
-        riskScore: Math.round(tx.final_score * 100), // Convert to 0-100 scale
-        riskLevel: tx.risk.toLowerCase() as RiskLevel,
-        kycStatus: "Verified" as const, // Default to verified for now
-        createdAt: tx.createdAt,
-        terms: `Transaction with ${tx.counterparty}`, // Default terms based on counterparty
-        risk: {
-          rollingWindowScore: Math.round(tx.final_score * 100),
-          cusumScore: Math.round(tx.final_score * 100),
-          surgeRatio: 1,
-          explanation: `Risk score: ${Math.round(tx.final_score * 100)}%`,
-          flags: tx.final_score > 0.5 ? ["High Risk"] : [],
+    () => {
+      // Map backend risk levels to frontend RiskLevel type
+      const mapRiskLevel = (backendRisk: string): RiskLevel => {
+        switch (backendRisk?.toLowerCase()) {
+          case 'normal':
+            return 'low';
+          case 'monitor':
+            return 'medium';
+          case 'restrict':
+          case 'freeze':
+            return 'high';
+          default:
+            return 'low'; // Default fallback
+        }
+      };
+
+      return {
+        reliabilityScore: dashboardData?.user?.reliability_score || 0,
+        riskLevel: mapRiskLevel(dashboardData?.riskProfile?.level),
+        kycStatus: dashboardData?.user?.kyc_status || "Pending",
+        wallet: {
+          availableBalance: dashboardData?.metrics?.walletBalance || 0,
+          lockedFunds: dashboardData?.metrics?.activeEscrows || 0,
+          pendingTransactions: dashboardData?.metrics?.activeEscrows || 0,
         },
-        timeline: [
-          { label: "Initiated", date: new Date(tx.createdAt).toLocaleString(), done: true },
-          { label: "Locked", date: "Pending", done: tx.state !== 'created' },
-          { label: "In Progress", date: "Pending", done: tx.state === 'funded' || tx.state === 'released' },
-          { label: "Released", date: "Pending", done: tx.state === 'released' },
-        ],
-      })) || [],
+      transactions: dashboardData?.recentTransactions?.map((tx: any) => {
+        // Map backend risk levels to frontend RiskLevel type
+        const mapRiskLevel = (backendRisk: string): RiskLevel => {
+          switch (backendRisk.toLowerCase()) {
+            case 'normal':
+              return 'low';
+            case 'monitor':
+              return 'medium';
+            case 'restrict':
+            case 'freeze':
+              return 'high';
+            default:
+              return 'low'; // Default fallback
+          }
+        };
+
+        return {
+          id: tx.id,
+          counterpartyId: '', // Backend doesn't provide ID, using empty string
+          counterpartyName: tx.counterparty,
+          amount: tx.amount,
+          status: (tx.state.charAt(0).toUpperCase() + tx.state.slice(1)) as TransactionStatus,
+          riskScore: Math.round(tx.final_score * 100), // Convert to 0-100 scale
+          riskLevel: mapRiskLevel(tx.risk),
+          kycStatus: "Verified" as const, // Default to verified for now
+          createdAt: tx.createdAt,
+          terms: `Transaction with ${tx.counterparty}`, // Default terms based on counterparty
+          risk: {
+            rollingWindowScore: Math.round(tx.final_score * 100),
+            cusumScore: Math.round(tx.final_score * 100),
+            surgeRatio: 1,
+            explanation: `Risk score: ${Math.round(tx.final_score * 100)}%`,
+            flags: tx.final_score > 0.5 ? ["High Risk"] : [],
+          },
+          timeline: [
+            { label: "Initiated", date: new Date(tx.createdAt).toLocaleString(), done: true },
+            { label: "Locked", date: "Pending", done: tx.state !== 'created' },
+            { label: "In Progress", date: "Pending", done: tx.state === 'funded' || tx.state === 'released' },
+            { label: "Released", date: "Pending", done: tx.state === 'released' },
+          ],
+        };
+      }) || [],
       counterparties: users.map((user: any) => ({
         id: user.id,
         name: user.full_name,
@@ -450,9 +483,8 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
       restrictAccount,
       flagUser,
       markAllNotificationsRead,
-    }),
-    [dashboardData, notifications],
-  );
+    };
+  }, [dashboardData, notifications]);
 
   return <AdaptiveEscrowContext.Provider value={value}>{children}</AdaptiveEscrowContext.Provider>;
 };
