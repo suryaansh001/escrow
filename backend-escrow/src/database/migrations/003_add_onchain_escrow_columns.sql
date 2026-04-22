@@ -1,0 +1,19 @@
+ALTER TABLE escrows
+  ADD COLUMN IF NOT EXISTS onchain_escrow_id BIGINT,
+  ADD COLUMN IF NOT EXISTS tx_hash_create VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS tx_hash_fund VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS tx_hash_release VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS tx_hash_dispute VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS onchain_status VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS contract_address VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS chain_id INTEGER;
+
+CREATE TABLE IF NOT EXISTS chain_sync_cursor (
+  id SMALLINT PRIMARY KEY DEFAULT 1,
+  last_processed_block BIGINT NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO chain_sync_cursor (id, last_processed_block)
+VALUES (1, 0)
+ON CONFLICT (id) DO NOTHING;

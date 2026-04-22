@@ -5,10 +5,12 @@ import { createServer } from 'http';
 import app from './app.js';
 import { sql } from './config/db.js';
 import { info, error as _error } from './utils/logger.js';
+import { startEscrowSyncWorker } from '../modules/escrow/sync.worker.js';
 
 const PORT = process.env.PORT || 3000;
 
 const server = createServer(app);
+let stopEscrowSync = () => {};
 
 
 const init = async function initialise() {
@@ -20,6 +22,7 @@ const init = async function initialise() {
     server.listen(PORT, () => {
       info(`Server is running on port ${PORT}`);
     });
+    stopEscrowSync = startEscrowSyncWorker();
   } catch (error) {
     _error('Failed to initialize the application:', error);
     process.exit(1); 
@@ -29,6 +32,7 @@ const init = async function initialise() {
 // Graceful shutdown
 const shutdown = () => {
   info('Shutting down gracefully...');
+  stopEscrowSync();
   server.close(() => {
     info('Server closed');
     process.exit(0);

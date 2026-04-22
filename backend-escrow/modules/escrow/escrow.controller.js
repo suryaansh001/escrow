@@ -2,11 +2,20 @@ import { sql } from '../../src/config/db.js';
 import { computeRiskScores, updateReliabilityScore } from '../risk/risk.services.js';
 import walletService from '../users/wallet.service.js';
 import { sendTransactionNotification } from '../../src/utils/email.js';
+import { verifyEscrowCreateTx, verifyEscrowEventTx } from './blockchain.service.js';
 
 export async function createEscrow(req, res) {
     try {
         const userId = req.user.id;
-        const { seller_id, counterparty_name, amount, description, transaction_type, adaptive_risk } = req.body;
+        const {
+            seller_id,
+            counterparty_name,
+            amount,
+            description,
+            tx_hash_create,
+            chain_id,
+            contract_address,
+        } = req.body;
         
         if (!amount) {
             return res.status(400).json({ error: 'Amount is required' });
@@ -14,9 +23,13 @@ export async function createEscrow(req, res) {
 
         let finalSellerId = seller_id;
 
-        // If counterparty_name is provided, look up the seller user by full_name
+        // If counterparty_name is provided, look up the seller user by full_name or email
         if (!seller_id && counterparty_name) {
-            const sellerUser = await sql`SELECT id FROM users WHERE full_name = ${counterparty_name}`;
+            let sellerUser = await sql`SELECT id FROM users WHERE full_name = ${counterparty_name}`;
+            // Fallback: try matching by email if full_name lookup fails
+            if (sellerUser.length === 0) {
+                sellerUser = await sql`SELECT id FROM users WHERE email = ${counterparty_name}`;
+            }
             if (sellerUser.length === 0) {
                 return res.status(404).json({ error: 'Counterparty not found' });
             }
@@ -34,13 +47,27 @@ export async function createEscrow(req, res) {
         if (amount <= 0) {
             return res.status(400).json({ error: 'Amount must be greater than 0' });
         }
+
+        if (!tx_hash_create) {
+            return res.status(400).json({ error: 'tx_hash_create is required for on-chain escrow creation' });
+        }
+
+        const onchainCreate = await verifyEscrowCreateTx(tx_hash_create);
+
         // Compute risk scores for the buyer
         const riskScores = await computeRiskScores(userId, parseFloat(amount));
         
         const newEscrow = await sql`
-            INSERT INTO escrows (buyer_id, seller_id, amount, description, state, buyer_r_at_creation, suspicion_f_at_lock) 
+            INSERT INTO escrows (
+                buyer_id, seller_id, amount, description, state, buyer_r_at_creation, suspicion_f_at_lock,
+                on_chain, onchain_escrow_id, tx_hash_create, chain_id, contract_address, onchain_status
+            )
             VALUES (${userId}, ${finalSellerId}, ${amount}, ${description || null}, 'created', 
-                    (SELECT reliability_score FROM users WHERE id = ${userId}), ${riskScores.finalScore}) 
+                    (SELECT reliability_score FROM users WHERE id = ${userId}), ${riskScores.finalScore},
+                    TRUE, ${onchainCreate.escrowId}, ${tx_hash_create},
+                    ${chain_id || onchainCreate.chainId || null},
+                    ${contract_address || onchainCreate.contractAddress || null},
+                    'created') 
             RETURNING *
         `;
         
@@ -183,7 +210,7 @@ export async function getEscrowsByUserId(req, res) {
 export async function updateEscrowState(req, res) {
     try {
         const { id } = req.params;
-        const { state } = req.body;
+        const { state, tx_hash } = req.body;
         const userId = req.user.id;
         
         if (!state) {
@@ -204,9 +231,26 @@ export async function updateEscrowState(req, res) {
             return res.status(404).json({ error: 'Escrow not found' });
         }
         
+        if ((state === 'released' || state === 'disputed') && !tx_hash) {
+            return res.status(400).json({ error: 'tx_hash is required for on-chain state updates' });
+        }
+
+        if (state === 'released') {
+            await verifyEscrowEventTx(tx_hash, 'EscrowReleased');
+        }
+
+        if (state === 'disputed') {
+            await verifyEscrowEventTx(tx_hash, 'EscrowDisputed');
+        }
+
         const updatedEscrow = await sql`
             UPDATE escrows 
-            SET state = ${state}, updated_at = NOW()
+            SET
+              state = ${state},
+              onchain_status = ${state},
+              tx_hash_release = CASE WHEN ${state} = 'released' THEN ${tx_hash || null} ELSE tx_hash_release END,
+              tx_hash_dispute = CASE WHEN ${state} = 'disputed' THEN ${tx_hash || null} ELSE tx_hash_dispute END,
+              updated_at = NOW()
             WHERE id = ${id}
             RETURNING *
         `;
@@ -223,6 +267,11 @@ export async function fundEscrow(req, res) {
         const { id } = req.params;
         const userId = req.user.id;
 
+        const { tx_hash } = req.body;
+        if (!tx_hash) {
+            return res.status(400).json({ error: 'tx_hash is required for on-chain funding proof' });
+        }
+
         // Get escrow details
         const escrowData = await sql`
             SELECT * FROM escrows
@@ -235,21 +284,20 @@ export async function fundEscrow(req, res) {
 
         const escrow = escrowData[0];
 
-        // Fund escrow from wallet
-        const walletResult = await walletService.fundEscrow(userId, id, escrow.amount);
+        // Verify create/funding transaction came from chain for this escrow
+        await verifyEscrowCreateTx(tx_hash);
 
         // Update escrow state to funded
         const updatedEscrow = await sql`
             UPDATE escrows
-            SET state = 'funded', funded_at = NOW(), updated_at = NOW()
+            SET state = 'funded', onchain_status = 'created', tx_hash_fund = ${tx_hash}, funded_at = NOW(), updated_at = NOW()
             WHERE id = ${id}
             RETURNING *
         `;
 
         res.status(200).json({
             success: true,
-            escrow: updatedEscrow[0],
-            wallet: walletResult
+            escrow: updatedEscrow[0]
         });
     } catch (error) {
         console.error('Error funding escrow:', error);

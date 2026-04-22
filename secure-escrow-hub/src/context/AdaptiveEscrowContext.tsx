@@ -83,6 +83,7 @@ interface AdaptiveEscrowState {
     amount: number;
     counterparty: string;
     terms: string;
+    tx_hash_create?: string;
   }) => EscrowTransaction;
   confirmDelivery: (transactionId: string) => void;
   raiseDispute: (transactionId: string) => void;
@@ -301,7 +302,7 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
   }, []);
 
   // Create transaction using backend API with PIN verification
-  const createTransaction: AdaptiveEscrowState["createTransaction"] = async ({ amount, counterparty, terms }) => {
+  const createTransaction: AdaptiveEscrowState["createTransaction"] = async ({ amount, counterparty, terms, tx_hash_create }) => {
     try {
       // PIN verification will be handled in the UI component
       // Create escrow via backend
@@ -309,6 +310,7 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
         amount,
         counterparty_name: counterparty,
         description: terms,
+        tx_hash_create,
       });
 
       if (response.success) {

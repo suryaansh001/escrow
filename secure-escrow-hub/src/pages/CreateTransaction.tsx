@@ -11,10 +11,12 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { RiskIndicator } from "@/components/common/RiskIndicator";
 import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 import { dashboardApi, securityApi } from "@/lib/api";
+import { createEscrowOnChain } from "@/lib/web3Escrow";
 
 interface CreateEscrowForm {
   amount: string;
   counterpartyId: string;
+  sellerWalletAddress: string;
   terms: string;
   pin: string;
 }
@@ -38,6 +40,7 @@ const CreateTransaction = () => {
   const [form, setForm] = useState<CreateEscrowForm>({
     amount: '',
     counterpartyId: '',
+    sellerWalletAddress: '',
     terms: '',
     pin: '',
   });
@@ -56,8 +59,9 @@ const CreateTransaction = () => {
         if (res.success) {
           setUsers(res.users || []);
         }
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+        setError('Failed to load counterparties. Please refresh or re-login.');
       } finally {
         setUsersLoading(false);
       }
@@ -96,8 +100,8 @@ const CreateTransaction = () => {
   };
 
   const handleCreateTransaction = async () => {
-    if (!form.amount || !form.counterpartyId || !form.terms || !form.pin) {
-      setError('Please fill in all required fields including PIN');
+    if (!form.amount || !form.counterpartyId || !form.sellerWalletAddress || !form.terms || !form.pin) {
+      setError('Please fill in all required fields including seller wallet and PIN');
       return;
     }
 
@@ -120,10 +124,17 @@ const CreateTransaction = () => {
         return;
       }
 
-      createTransaction({
-        amount: parseFloat(form.amount),
-        counterparty: selectedUser.full_name,
+      const onchain = await createEscrowOnChain({
+        sellerAddress: form.sellerWalletAddress,
+        amountInInr: parseFloat(form.amount),
         terms: form.terms,
+      });
+
+      await createTransaction({
+        amount: parseFloat(form.amount),
+        counterparty: selectedUser.full_name || selectedUser.email,
+        terms: form.terms,
+        tx_hash_create: onchain.txHash,
       });
 
       setStep('confirmation');
@@ -195,7 +206,10 @@ const CreateTransaction = () => {
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Counterparty</p>
                     <p className="font-medium text-foreground">
-                      {users.find(user => user.id === form.counterpartyId)?.full_name || 'Unknown'}
+                      {(() => {
+                        const u = users.find(user => user.id === form.counterpartyId);
+                        return u ? (u.full_name || u.email) : 'Unknown';
+                      })()}
                     </p>
                   </div>
                 </div>
@@ -285,9 +299,12 @@ const CreateTransaction = () => {
                 <SelectValue placeholder={usersLoading ? "Loading users..." : "Select a counterparty"} />
               </SelectTrigger>
               <SelectContent>
+                {users.length === 0 && !usersLoading && (
+                  <SelectItem value="__none__" disabled>No counterparties found</SelectItem>
+                )}
                 {users.map((user) => (
                   <SelectItem key={user.id} value={user.id}>
-                    {user.full_name} ({user.email})
+                    {user.full_name ? `${user.full_name} (${user.email})` : user.email}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -335,6 +352,17 @@ const CreateTransaction = () => {
               onChange={(e) => handleInputChange('terms', e.target.value)}
               className="rounded-xl"
             />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-foreground block mb-2">Seller Wallet Address *</label>
+            <Input
+              placeholder="0x..."
+              value={form.sellerWalletAddress}
+              onChange={(e) => handleInputChange('sellerWalletAddress', e.target.value)}
+              className="rounded-xl"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Required for on-chain escrow creation via MetaMask</p>
           </div>
 
           <div>

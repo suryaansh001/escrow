@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { useUser } from "@/context/UserContext";
 
 const adminSidebarItems = [
   { icon: BarChart3, label: "Dashboard", path: "/admin" },
@@ -33,6 +34,9 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children }: AdminLayoutProps) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useUser();
+  const adminName = user?.full_name || "Admin User";
+  const adminEmail = user?.email || "admin@secureescrow.local";
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -81,11 +85,11 @@ const AdminLayout = ({ children }: AdminLayoutProps) => {
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sm font-semibold text-sidebar-primary">
-              A
+              {adminName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Admin</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">admin@escrow.com</p>
+              <p className="text-sm font-medium truncate">{adminName}</p>
+              <p className="text-xs text-sidebar-foreground/50 truncate">{adminEmail}</p>
             </div>
             <ChevronDown className="h-4 w-4 text-sidebar-foreground/50" />
           </div>

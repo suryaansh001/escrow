@@ -34,7 +34,7 @@ const sidebarItems = [
 const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { notifications } = useAdaptiveEscrow();
+  const { notifications, wallet } = useAdaptiveEscrow();
   const { user, logout } = useUser();
   const unreadCount = notifications.filter((item) => !item.read).length;
 
@@ -115,7 +115,7 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
           </Button>
           <div className="flex items-center gap-2 text-sm">
             <Wallet className="h-4 w-4 text-muted-foreground" />
-            <span className="font-semibold text-foreground">₹24,500</span>
+            <span className="font-semibold text-foreground">₹{Math.round(wallet.availableBalance).toLocaleString()}</span>
           </div>
         </header>
 

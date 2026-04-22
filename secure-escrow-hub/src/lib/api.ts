@@ -76,6 +76,8 @@ export interface DashboardTransaction {
   state: string;
   risk: string;
   createdAt: string;
+  onchain_escrow_id?: number;
+  onchain_status?: string;
 }
 
 export interface WalletBalance {
@@ -315,7 +317,7 @@ export const escrowApi = {
     return response.json();
   },
 
-  async updateEscrowState(id: string, state: string) {
+  async updateEscrowState(id: string, state: string, tx_hash?: string) {
     const token = tokenStorage.getToken();
     
     if (!token) {
@@ -328,7 +330,7 @@ export const escrowApi = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ state }),
+      body: JSON.stringify({ state, tx_hash }),
     });
 
     if (!response.ok) {
@@ -339,7 +341,7 @@ export const escrowApi = {
     return response.json();
   },
 
-  async fundEscrow(id: string) {
+  async fundEscrow(id: string, tx_hash: string) {
     const token = tokenStorage.getToken();
     
     if (!token) {
@@ -352,6 +354,7 @@ export const escrowApi = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
       },
+      body: JSON.stringify({ tx_hash }),
     });
 
     if (!response.ok) {
