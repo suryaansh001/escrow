@@ -44,6 +44,21 @@ async function register(req, res) {
         res.status(201).json({ user: newUser[0] });
     } catch (error) {
         console.error('Error during registration:', error);
+        
+        // Handle duplicate email error
+        if (error.code === '23505' && error.constraint === 'users_email_key') {
+            return res.status(409).json({ 
+                error: 'An account with this email already exists. Please try logging in instead.' 
+            });
+        }
+        
+        // Handle duplicate phone error
+        if (error.code === '23505' && error.constraint === 'users_phone_key') {
+            return res.status(409).json({ 
+                error: 'An account with this phone number already exists. Please use a different phone number.' 
+            });
+        }
+        
         res.status(500).json({ error: 'Internal server error' });
     }
 }   
