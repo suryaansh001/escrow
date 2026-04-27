@@ -24,6 +24,7 @@ const RiskAnalysis = lazy(() => import("./pages/admin/RiskAnalysis"));
 const AdminDisputes = lazy(() => import("./pages/admin/AdminDisputes"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminLogin = lazy(() => import("./pages/admin/AdminLogin"));
+const KYC = lazy(() => import("./pages/KYC"));
 import AdminProtectedRoute from "./components/admin/AdminProtectedRoute";
 import { AdaptiveEscrowProvider } from "./context/AdaptiveEscrowContext";
 import { UserProvider } from "./context/UserContext";
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/transaction/:id" element={<TransactionDetails />} />
               <Route path="/counterparty/:id" element={<CounterpartyProfile />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/kyc" element={<KYC />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/wallet" element={<WalletPage />} />

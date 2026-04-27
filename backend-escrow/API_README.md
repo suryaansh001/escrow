@@ -24,6 +24,7 @@ Most routes require authentication via JWT token in the Authorization header. Ro
 - `PUT /settings/profile` → `updateuserProfile` - Update user profile (email and phone)
 - `POST /settings/verify-email` → `verifyEmailChange` - Verify email change with OTP
 - `POST /settings/security-pin` → `setSecurityPin` - Set security PIN
+
 - `POST /settings/security-pin/verify` → `verifySecurityPin` - Verify security PIN
 - `PUT /settings/security-pin` → `updateSecurityPin` - Update security PIN
 

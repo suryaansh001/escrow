@@ -130,6 +130,13 @@ const Dashboard = () => {
                     <Wallet className="mr-2 h-4 w-4" /> View Wallet
                   </Link>
                 </Button>
+                {kycStatus !== "Verified" && (
+                  <Button asChild variant="outline" className="w-full rounded-xl justify-start border-orange-200 text-orange-700 hover:bg-orange-50">
+                    <Link to="/kyc">
+                      <Shield className="mr-2 h-4 w-4" /> Complete KYC
+                    </Link>
+                  </Button>
+                )}
                 <Button asChild variant="outline" className="w-full rounded-xl justify-start">
                   <Link to="/counterparty/usr-2">
                     <UserCircle2 className="mr-2 h-4 w-4" /> Counterparty Profile
