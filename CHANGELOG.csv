@@ -1,0 +1,69 @@
+Commit,Date,Author,Message,Lines Added,Lines Deleted,Total Line Changes
+7d33fead,2026-04-29 14:23:58,Anmolsahu-02,kyc updation issue,334,210,544
+c59dadd6,2026-04-29 14:11:05,Anmolsahu-02,chota sa error,34,9,43
+e864a06c,2026-04-29 13:46:45,Anmolsahu-02,"added user dashboard, reliability decay visualization, and escrow deployment configuration",392,117029,117421
+5f0f31d1,2026-04-27 12:58:49,Suryaansh,yaar yeh simulation,15,0,15
+7890d0e8,2026-04-27 12:49:45,Suryaansh,kyc simulation,563,0,563
+97a68b34,2026-04-27 12:37:01,Suryaansh,api-readmemd,62,0,62
+1d9e5a7e,2026-04-26 20:33:57,Suryaansh,fixing the imports,174,102710,102884
+afa55499,2026-04-22 23:30:39,EkanshSaraswat,fix: update frontend pnpm-lock.yaml to resolve Vercel build error,91,0,91
+3316b890,2026-04-22 23:17:31,EkanshSaraswat,fix: update pnpm-lock.yaml to resolve Vercel build error,134,72,206
+353aa608,2026-04-22 14:55:38,EkanshSaraswat,uploaded blockchain,2633,84,2717
+ce08d09a,2026-04-20 12:58:47,EkanshSaraswat,fix: add SPA rewrite to prevent route ref resh 404s,197,144,341
+49c75501,2026-04-18 00:02:27,Suryaansh,lil error,64,4,68
+d59a3076,2026-04-17 23:53:47,Suryaansh,chhota frontedn BT de gya,68,36,104
+fa5f27d7,2026-04-17 23:38:50,Suryaansh,ek new addon,262,167,429
+540aad17,2026-04-17 22:25:58,Suryaansh,"ho ja bhai , khud se likha h ab toh",62,15,77
+0ae4c060,2026-04-17 22:14:15,Suryaansh,pagal ho gya chhote se error se,535,19,554
+0162b36d,2026-04-17 21:41:31,Suryaansh,pareshan kr diya,26,8,34
+5c5970b5,2026-04-17 21:25:16,Suryaansh,faltu,119,180,299
+c0a54db0,2026-04-17 21:09:34,Suryaansh,bin baat ka error,19,1,20
+07dbd872,2026-04-17 21:08:48,Suryaansh,build errr ,66,5,71
+5174551c,2026-04-17 19:57:01,Suryaansh,fixing frontend error after adminstuff,1068,101,1169
+2fbc8af1,2026-04-17 14:42:46,Suryaansh,backend scoring,1152,35,1187
+f8b876f2,2026-04-07 17:40:50,Suryaansh,admin side files on frontend,2938,359,3297
+e9967cb8,2026-03-11 16:03:08,Suryaansh,dispute,185,17,202
+7512624e,2026-03-10 05:02:39,Suryaansh,lkhj,98,6,104
+8bc467e8,2026-03-10 04:58:49,Suryaansh,oto,6,1,7
+a45b49f7,2026-03-10 04:52:28,Suryaansh,fixred passsword complexity,100,52,152
+672582b2,2026-03-09 00:08:41,Anmolsahu-02,Remove unused example script,0,31,31
+b725eee3,2026-03-09 00:04:03,Anmolsahu-02,Updated README for workflow and future work,33,0,33
+a860ac89,2026-03-09 00:02:03,Anmolsahu-02,Updated README to describe the current structure,16,49,65
+63666222,2026-03-08 23:53:10,Anmolsahu-02,Add deployment script for escrow smart contract,22,0,22
+c04e1d56,2026-03-08 23:42:17,Anmolsahu-02,Add explanatory comments and contract structure,6,0,6
+1fed8655,2026-03-08 23:36:27,Anmolsahu-02,Implement escrow fund release function,6,0,6
+ca4e1120,2026-03-08 23:35:41,Anmolsahu-02,Constructor to initialise escrow participants,9,0,9
+03ffd132,2026-03-08 23:30:02,Anmolsahu-02,Created Initial escrow smart contract strucuture,10,0,10
+edbc86f5,2026-03-08 20:07:25,Anmolsahu-02,Initialize blockchain module,3131,0,3131
+7138a3ef,2026-03-06 10:22:51,Suryaansh,update profile,332,8,340
+8f860f50,2026-03-05 10:42:17,Suryaansh,crud front and back,27,9,36
+12fd1603,2026-03-05 10:31:45,Suryaansh,sudahar in frontend compatibility,253,47,300
+7a5f66b2,2026-03-05 10:25:14,Suryaansh,basic backend functionalities,531,2,533
+37d4bbc9,2026-03-05 09:04:14,Suryaansh,favicon new sundar,0,0,0
+187ca5cc,2026-03-05 09:01:06,Suryaansh,fixed the new files tree,31,4,35
+0d6b0235,2026-03-05 08:56:09,Suryaansh,fixed module import,132,1,133
+2ae60c4c,2026-03-05 00:19:10,Suryaansh,file structure fixed,405,151,556
+008f7c0c,2026-03-04 21:54:32,Suryaansh,fixed layout,4,3,7
+bc3eea3c,2026-03-04 21:35:07,Suryaansh,back+otp,1,1,2
+c5c9ea75,2026-03-04 21:34:46,Suryaansh,final_login_otp_register,712,165,877
+3774e030,2026-03-04 21:07:28,Suryaansh,adding front and bac2k,15,0,15
+a4fc0104,2026-03-04 21:06:35,Suryaansh,adding front and back,285707,0,285707
+b68892b2,2026-02-01 13:21:53,Anmol Sahu,Add section on escrow in financial transactions,8,0,8
+aaad90d2,2026-02-01 11:53:32,Anmol Sahu,Add section on blockchain characteristics and consensus mechanisms,12,1,13
+49e1d7fa,2026-01-29 15:33:35,EkanshSaraswat,Update literature.md,10,0,10
+45af4ab2,2026-01-29 15:21:45,EkanshSaraswat,Update literature.md,7,0,7
+06c84775,2026-01-27 15:44:18,Suryaansh,adding research paper  risk based approaches in financial systems,0,0,0
+bb83e4e9,2026-01-27 15:44:07,Suryaansh,adding research paper  risk based approaches in financial systems,0,0,0
+83147691,2026-01-27 15:39:28,Suryaansh,adding research paper  risk based approaches in financial systems,17,0,17
+3141f672,2026-01-27 15:38:45,Suryaansh,adding research paper  risk based approaches in financial systems,0,17,17
+2f973291,2026-01-27 15:37:35,Suryaansh,adding research paper  risk based approaches in financial systems,7,0,7
+99b45fde,2026-01-27 15:37:01,Suryaansh,Delete risk based approaches section from literature,0,7,7
+abba59b2,2026-01-27 15:36:12,Suryaansh,adding research paper  risk based approaches in financial systems,10,3,13
+340c58a1,2026-01-22 07:46:33,Suryaansh,cleaned up stuff for literature md,0,7,7
+bb8e5ab0,2026-01-22 07:45:47,Suryaansh,adding research paper  fraud risk scoring models and techniques,0,0,0
+55bb9026,2026-01-22 07:45:40,Suryaansh,adding research paper  fraud risk scoring models and techniques,9,1,10
+8f2d0fcc,2026-01-22 07:22:42,Suryaansh,adding research paper  fraud risk scoring models and techniques,10,1,11
+66f0ee79,2026-01-21 05:53:55,Suryaansh,Add initial content to literature.md,1,0,1
+25000a7b,2026-01-21 05:53:17,Suryaansh,ono,0,1,1
+0dc2b85c,2026-01-21 05:52:35,Suryaansh,Add initial content for literature section,1,0,1
+14bbdb4d,2026-01-16 16:02:24,Suryaansh,initial stuff,163,0,163
