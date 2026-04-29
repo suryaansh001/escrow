@@ -74,6 +74,11 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {/* Decay Visualizer — between stats and recent transactions */}
+        <div className="mb-8">
+          <DecayVisualizer />
+        </div>
+
         <div className="grid lg:grid-cols-3 gap-6 mb-8">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-fintech lg:col-span-2 !p-0 overflow-hidden">
             <div className="p-6 pb-0">
@@ -179,9 +184,6 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-
-        {/* Decay Visualizer — full width below the grid */}
-        <DecayVisualizer />
       </div>
     </DashboardLayout>
   );

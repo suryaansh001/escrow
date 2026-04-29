@@ -157,13 +157,15 @@ export async function getDecayPreview(req, res) {
 
         // Fetch current reliability score
         const userData = await sql`
-            SELECT reliability_score, last_active_at FROM users WHERE id = ${userId}
+            SELECT reliability_score FROM users WHERE id = ${userId}
         `;
         if (userData.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const R0 = parseFloat(userData[0].reliability_score);
+        // If score is 0 (unverified user), use a demo value so graph is visible
+        const rawScore = parseFloat(userData[0].reliability_score);
+        const R0 = rawScore > 0 ? rawScore : 0.5; // 0.5 as demo for unverified users
 
         // Read lambda from system_config; fall back to 0.001 if not found
         let lambda = 0.001;

@@ -67,13 +67,17 @@ export function DecayVisualizer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = () => {
+    setLoading(true);
+    setError(null);
     dashboardApi
       .getDecayPreview()
       .then((res) => setData(res.data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { load(); }, []);
 
   if (loading) {
     return (
@@ -86,8 +90,25 @@ export function DecayVisualizer() {
 
   if (error || !data) {
     return (
-      <div className="card-fintech border-destructive/30">
-        <p className="text-sm text-destructive">Failed to load decay visualizer</p>
+      <div className="card-fintech">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-foreground mb-1">Inactivity Decay Projection</p>
+            <p className="text-xs text-muted-foreground">
+              Could not load decay data.
+              {error && <span className="block mt-1 text-destructive/80">{error}</span>}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2 italic">
+              Make sure the backend is restarted after the latest changes.
+            </p>
+          </div>
+          <button
+            onClick={load}
+            className="shrink-0 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
