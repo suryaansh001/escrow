@@ -94,6 +94,7 @@ interface AdaptiveEscrowState {
   restrictAccount: (userId: string) => void;
   flagUser: (userId: string) => void;
   markAllNotificationsRead: () => void;
+  refreshDashboard: () => Promise<void>;
 }
 
 const AdaptiveEscrowContext = createContext<AdaptiveEscrowState | null>(null);
@@ -406,10 +407,19 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
         }
       };
 
+      // Map backend kyc_status to frontend capitalized form
+      const mapKycStatus = (status: string): "Verified" | "Pending" | "Rejected" => {
+        switch (status?.toLowerCase()) {
+          case 'verified': return 'Verified';
+          case 'rejected': return 'Rejected';
+          default: return 'Pending';
+        }
+      };
+
       return {
         reliabilityScore: dashboardData?.user?.reliability_score || 0,
         riskLevel: mapRiskLevel(dashboardData?.riskProfile?.level),
-        kycStatus: dashboardData?.user?.kyc_status || "Pending",
+        kycStatus: mapKycStatus(dashboardData?.user?.kyc_status),
         wallet: {
           availableBalance: dashboardData?.metrics?.walletBalance || 0,
           lockedFunds: dashboardData?.metrics?.activeEscrows || 0,
@@ -485,6 +495,7 @@ export const AdaptiveEscrowProvider = ({ children }: { children: ReactNode }) =>
       restrictAccount,
       flagUser,
       markAllNotificationsRead,
+      refreshDashboard: fetchDashboardData,
     };
   }, [dashboardData, notifications]);
 

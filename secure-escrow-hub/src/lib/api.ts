@@ -468,6 +468,24 @@ export const riskApi = {
   },
 };
 
+// KYC API
+export const kycApi = {
+  async verifyKyc(): Promise<{ success: boolean; message: string; reliability_score: number; kyc_status: string }> {
+    const token = tokenStorage.getToken();
+    if (!token) throw new Error('No authentication token found');
+    const response = await fetch(`${API_BASE_URL}/settings/kyc-verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'KYC verification failed');
+    }
+    return response.json();
+  },
+};
+
+
 // Wallet API calls
 export const walletApi = {
   async getBalance(userId: string): Promise<{ success: boolean; data: WalletBalance }> {

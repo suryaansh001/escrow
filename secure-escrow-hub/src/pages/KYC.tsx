@@ -10,9 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Progress } from "@/components/ui/progress";
 import Navbar from "@/components/layout/Navbar";
+import { kycApi } from "@/lib/api";
+import { useUser } from "@/context/UserContext";
+import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
 const KYC = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useUser();
+  const { refreshDashboard } = useAdaptiveEscrow();
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,14 +121,23 @@ const KYC = () => {
       setLoading(true);
       setError(null);
 
-      // Simulate verification
-      setTimeout(() => {
-        setSuccess("KYC verification completed successfully!");
+      try {
+        // Call the real backend to mark KYC as verified and set reliability_score = 0.5
+        await kycApi.verifyKyc();
+
+        // Refresh both contexts in parallel so dashboard updates without reload
+        await Promise.all([refreshUser(), refreshDashboard()]);
+
+        setSuccess("KYC verification completed! Your reliability score has been set to 50.");
+
         setTimeout(() => {
           navigate("/dashboard");
         }, 2000);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "KYC verification failed. Please try again.");
+      } finally {
         setLoading(false);
-      }, 1000);
+      }
     } else {
       setError("Invalid OTP. For simulation, use 111111");
     }

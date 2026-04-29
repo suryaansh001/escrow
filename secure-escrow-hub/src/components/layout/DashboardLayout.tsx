@@ -35,8 +35,12 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { notifications, wallet } = useAdaptiveEscrow();
-  const { user, logout } = useUser();
+  const { user, loading: userLoading, logout } = useUser();
   const unreadCount = notifications.filter((item) => !item.read).length;
+
+  // Display name: prefer full_name, fall back to email prefix, then generic
+  const displayName = user?.full_name || (user?.email ? user.email.split('@')[0] : null);
+  const avatarInitial = displayName?.[0]?.toUpperCase() || (userLoading ? '…' : 'U');
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -83,10 +87,14 @@ const DashboardLayout = ({ children }: { children: ReactNode }) => {
         <div className="p-4 border-t border-sidebar-border">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sm font-semibold text-sidebar-primary">
-              {user?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+              {avatarInitial}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.full_name || 'Loading...'}</p>
+              {userLoading ? (
+                <div className="h-3 w-24 bg-sidebar-accent/50 rounded animate-pulse mb-1" />
+              ) : (
+                <p className="text-sm font-medium truncate">{displayName || 'User'}</p>
+              )}
               <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email || ''}</p>
             </div>
             <Button

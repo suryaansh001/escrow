@@ -199,3 +199,73 @@ async function updateSecurityPin(req, res) {
 }
 
 export { updateuserProfile, verifyEmailChange, setSecurityPin, verifySecurityPin, updateSecurityPin };
+
+/**
+ * POST /settings/kyc-verify
+ * Simulated KYC approval:
+ *  - Sets kyc_status = 'verified'
+ *  - Sets bank_verified = true (simulating bank link in the same step)
+ *  - Sets reliability_score = 0.5 (r_base per the math model)
+ *  - Logs the change to reliability_history
+ */
+export async function verifyKyc(req, res) {
+    try {
+        const userId = req.user.id;
+
+        // Get current score for history log
+        const current = await sql`
+            SELECT reliability_score, kyc_status FROM users WHERE id = ${userId}
+        `;
+        if (current.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // If already verified, just return success — idempotent
+        if (current[0].kyc_status === 'verified') {
+            return res.status(200).json({
+                success: true,
+                message: 'KYC already verified',
+                reliability_score: parseFloat(current[0].reliability_score),
+                kyc_status: 'verified',
+            });
+        }
+
+        const prevScore = parseFloat(current[0].reliability_score);
+        const newScore = 0.5; // r_base from system_config
+
+        // Update user: mark KYC verified, set base reliability score
+        await sql`
+            UPDATE users
+            SET
+                kyc_status        = 'verified',
+                kyc_verified_at   = NOW(),
+                bank_verified     = TRUE,
+                bank_verified_at  = NOW(),
+                reliability_score = ${newScore},
+                updated_at        = NOW()
+            WHERE id = ${userId}
+        `;
+
+        // Log the score change to reliability_history (best-effort)
+        try {
+            await sql`
+                INSERT INTO reliability_history
+                    (user_id, r_previous, r_new, change_reason, alpha)
+                VALUES
+                    (${userId}, ${prevScore}, ${newScore}, 'kyc_verified', 0)
+            `;
+        } catch (_) {
+            // reliability_history may not exist — non-fatal
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'KYC verified successfully. Reliability score set to 0.5.',
+            reliability_score: newScore,
+            kyc_status: 'verified',
+        });
+    } catch (error) {
+        console.error('KYC verify error:', error);
+        return res.status(500).json({ error: 'Internal server error', details: error.message });
+    }
+}

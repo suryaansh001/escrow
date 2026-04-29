@@ -1,5 +1,5 @@
 import express from 'express';
-import { updateuserProfile, verifyEmailChange, setSecurityPin, verifySecurityPin, updateSecurityPin } from './settings.controllers.js';
+import { updateuserProfile, verifyEmailChange, setSecurityPin, verifySecurityPin, updateSecurityPin, verifyKyc } from './settings.controllers.js';
 import { authMiddleware } from '../auth/auth.middleware.js';
 
 const router = express.Router();
@@ -17,5 +17,8 @@ router.post('/verify-email', verifyEmailChange);
 router.post('/security-pin', setSecurityPin);
 router.post('/security-pin/verify', verifySecurityPin);
 router.put('/security-pin', updateSecurityPin);
+
+// KYC verification (simulated — marks user as verified, sets base reliability score)
+router.post('/kyc-verify', verifyKyc);
 
 export default router;
