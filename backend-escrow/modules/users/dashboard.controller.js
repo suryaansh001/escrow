@@ -145,6 +145,78 @@ async function getUserProfile(req, res) {
 
 export { getDashboardData, getUserProfile };
 
+/**
+ * GET /dashboard/decay-preview
+ * Returns 90 data points showing how the user's reliability score
+ * would decay over time if they were inactive.
+ * Formula: R_t = R_0 * e^(-lambda * days)
+ */
+export async function getDecayPreview(req, res) {
+    try {
+        const userId = req.user.id;
+
+        // Fetch current reliability score
+        const userData = await sql`
+            SELECT reliability_score, last_active_at FROM users WHERE id = ${userId}
+        `;
+        if (userData.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const R0 = parseFloat(userData[0].reliability_score);
+
+        // Read lambda from system_config; fall back to 0.001 if not found
+        let lambda = 0.001;
+        try {
+            const configRow = await sql`
+                SELECT value FROM system_config WHERE key = 'decay_lambda'
+            `;
+            if (configRow.length > 0) {
+                lambda = parseFloat(configRow[0].value);
+            }
+        } catch (_) {
+            // system_config may not exist in all environments
+        }
+
+        // Generate 90 daily data points
+        const DAYS = 90;
+        const dataPoints = [];
+        for (let day = 0; day <= DAYS; day++) {
+            const R_t = R0 * Math.exp(-lambda * day);
+            dataPoints.push({
+                day,
+                score: parseFloat(R_t.toFixed(6)),
+                scorePercent: parseFloat((R_t * 100).toFixed(2)),
+            });
+        }
+
+        // Compute some summary stats
+        const halfLifeDays = Math.round(Math.log(2) / lambda);
+        const scoreAt30 = R0 * Math.exp(-lambda * 30);
+        const scoreAt60 = R0 * Math.exp(-lambda * 60);
+        const scoreAt90 = R0 * Math.exp(-lambda * 90);
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                currentScore: R0,
+                currentScorePercent: parseFloat((R0 * 100).toFixed(2)),
+                lambda,
+                halfLifeDays,
+                projections: {
+                    day30: parseFloat((scoreAt30 * 100).toFixed(2)),
+                    day60: parseFloat((scoreAt60 * 100).toFixed(2)),
+                    day90: parseFloat((scoreAt90 * 100).toFixed(2)),
+                },
+                dataPoints,
+            },
+        });
+    } catch (error) {
+        console.error('Decay preview error:', error);
+        return res.status(500).json({ error: 'Failed to compute decay preview', details: error.message });
+    }
+}
+
 export async function listUsers(req, res) {
     try {
         const userId = req.user.id;

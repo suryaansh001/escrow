@@ -4,6 +4,7 @@ import { ArrowRight, Bell, Shield, Wallet, Activity, UserCircle2 } from "lucide-
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { RiskIndicator } from "@/components/common/RiskIndicator";
+import { DecayVisualizer } from "@/components/common/DecayVisualizer";
 import { useAdaptiveEscrow } from "@/context/AdaptiveEscrowContext";
 
 const statusColors: Record<string, string> = {
@@ -178,6 +179,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Decay Visualizer — full width below the grid */}
+        <DecayVisualizer />
       </div>
     </DashboardLayout>
   );

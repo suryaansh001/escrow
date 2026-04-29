@@ -243,7 +243,32 @@ export const dashboardApi = {
     }
     return response.json();
   },
+
+  async getDecayPreview(): Promise<{
+    success: boolean;
+    data: {
+      currentScore: number;
+      currentScorePercent: number;
+      lambda: number;
+      halfLifeDays: number;
+      projections: { day30: number; day60: number; day90: number };
+      dataPoints: { day: number; score: number; scorePercent: number }[];
+    };
+  }> {
+    const token = tokenStorage.getToken();
+    if (!token) throw new Error('No authentication token found');
+    const response = await fetch(`${API_BASE_URL}/dashboard/decay-preview`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to fetch decay preview');
+    }
+    return response.json();
+  },
 };
+
 
 // Escrow API calls
 export const escrowApi = {
