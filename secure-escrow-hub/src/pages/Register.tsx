@@ -141,8 +141,8 @@ const Register = () => {
       });
 
       if (response.user) {
-        setSuccess("Registration successful! Redirecting to login...");
-        setTimeout(() => navigate("/login"), 1500);
+        setSuccess("Registration successful! Redirecting to KYC verification...");
+        setTimeout(() => navigate("/kyc"), 1500);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");

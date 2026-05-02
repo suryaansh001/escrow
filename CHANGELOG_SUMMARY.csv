@@ -1,0 +1,9 @@
+Week,Start Date,End Date,Changes Done,Total Changes
+Week 1,2026-01-16,2026-01-20,"Project initialization - Initial setup & scaffolding",163
+Week 2,2026-01-21,2026-01-27,"Literature - Initial content creation; Research - Risk-based approaches & Fraud risk scoring models (17+7+10+9+10)",53
+Week 3,2026-01-29,2026-02-06,"Literature - Research documentation update; Documentation - Escrow & blockchain characteristics (10+7+8+12)",37
+Week 4,2026-03-04,2026-03-06,"UI/UX - Layout fixes; Authentication - OTP integration; Auth system - Login/OTP/Register; Frontend/Backend - Initial integration; Project initialization - Frontend & backend boilerplate; CRUD operations; Frontend compatibility; Backend core features; Project structure reorganization; Build system fixes; User profile update","142827"
+Week 5,2026-03-08,2026-03-11,"Smart Contract - Deployment script, Code comments, Fund release logic, Constructor, Initial structure; Blockchain - Module initialization; Dispute module - Core implementation; OTP system - Enhancement; Password complexity validation; Documentation - README updates","3262"
+Week 6,2026-04-07,2026-04-07,"Admin panel - Frontend files implementation","2938"
+Week 7,2026-04-17,2026-04-18,"Frontend feature - New addon & Enhancement; Feature - Internal component; Error handling - Bug fixes; Code refinement - Cleanup; Code maintenance - Unused code removal; Error resolution - Bug fixes; Build - Error correction; Frontend - Admin panel integration; Backend - Scoring system implementation; Minor bug fix","4367"
+Week 8,2026-04-20,2026-04-27,"Routing - SPA rewrite to fix 404 errors; Backend/Frontend dependencies - pnpm-lock.yaml fixes (Vercel build); Blockchain module - Upload & integration; Import fixes & refactoring; KYC Simulation - Module setup & Testing & API Documentation","3290"

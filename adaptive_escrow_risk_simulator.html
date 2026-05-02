@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adaptive Risk-Based Escrow — Simulator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+:root {
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f0efea;
+  --color-background-warning: #FAEEDA;
+  --color-background-info: #E6F1FB;
+  --color-border-tertiary: rgba(0,0,0,0.12);
+  --color-border-secondary: rgba(0,0,0,0.22);
+  --color-border-info: #378ADD;
+  --color-border-warning: #EF9F27;
+  --color-text-primary: #1a1a18;
+  --color-text-secondary: #5f5e5a;
+  --color-text-info: #185FA5;
+  --color-text-warning: #633806;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --font-sans: system-ui, -apple-system, sans-serif;
+  --font-mono: 'Courier New', Courier, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background-primary: #242422;
+    --color-background-secondary: #2c2c2a;
+    --color-background-warning: #412402;
+    --color-background-info: #042C53;
+    --color-border-tertiary: rgba(255,255,255,0.10);
+    --color-border-secondary: rgba(255,255,255,0.20);
+    --color-border-info: #185FA5;
+    --color-border-warning: #BA7517;
+    --color-text-primary: #eeecea;
+    --color-text-secondary: #b4b2a9;
+    --color-text-info: #B5D4F4;
+    --color-text-warning: #FAC775;
+  }
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:#f5f5f0;color:var(--color-text-primary);font-size:15px;line-height:1.6;padding:24px 16px 60px}
+
+@media (prefers-color-scheme: dark) {
+  body { background: #1c1c1a; }
+}
+
+h1{font-size:28px;font-weight:600;margin-bottom:6px;background:linear-gradient(135deg,#1D9E75,#185FA5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+h2{font-size:16px;font-weight:500;margin-bottom:12px}
+.subtitle{font-size:13px;color:var(--color-text-secondary);margin-bottom:24px;font-style:italic}
+
+.sim-wrap{padding:1.5rem 0}
+.section-title{font-size:12px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;opacity:0.8}
+.card{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:20px 22px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:all 0.2s ease}
+.card:hover{box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+
+.metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.metric{background:linear-gradient(135deg,var(--color-background-secondary)0%,rgba(200,200,200,0.03)100%);border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);padding:14px 16px;transition:all 0.2s ease}
+.metric:hover{border-color:var(--color-border-info);transform:translateY(-2px)}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:6px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em}
+.metric-val{font-size:24px;font-weight:600;color:var(--color-text-primary)}
+
+.case-btns{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.case-btn{padding:10px 18px;border:1.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-primary);transition:all 0.2s ease;font-weight:500}
+.case-btn:hover{background:var(--color-background-secondary);transform:translateY(-1px)}
+.case-btn.active{background:var(--color-background-info);border-color:var(--color-border-info);color:var(--color-text-info);box-shadow:0 2px 6px rgba(55,138,221,0.2)}
+
+.txn-input-row{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.txn-input-row input{flex:1;min-width:120px;padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);font-size:14px;transition:all 0.2s ease}
+.txn-input-row input:focus{outline:none;border-color:var(--color-border-info);box-shadow:0 0 0 3px rgba(55,138,221,0.1)}
+.txn-input-row button{padding:10px 16px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;cursor:pointer;font-size:13px;color:var(--color-text-primary);transition:all 0.2s ease;font-weight:500}
+.txn-input-row button:hover{background:var(--color-background-secondary);transform:translateY(-1px)}
+
+.run-btn{padding:10px 22px;border-radius:var(--border-radius-md);border:none;background:linear-gradient(135deg,#1D9E75,#158B63);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s ease;box-shadow:0 2px 6px rgba(29,158,117,0.3)}
+.run-btn:hover{opacity:0.95;transform:translateY(-2px);box-shadow:0 4px 10px rgba(29,158,117,0.4)}
+
+.reset-btn{padding:10px 16px;border-radius:var(--border-radius-md);border:1px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);font-size:13px;cursor:pointer;transition:all 0.2s ease}
+.reset-btn:hover{background:var(--color-background-secondary)}
+
+.formula-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px;font-size:12px;font-family:var(--font-mono);color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6;white-space:pre-wrap;border-left:3px solid var(--color-border-info)}
+.formula-box span.hi{color:var(--color-text-primary);font-weight:600}
+
+.txn-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.txn-table th{text-align:left;padding:10px 10px;border-bottom:1.5px solid var(--color-border-secondary);color:var(--color-text-secondary);font-weight:600;white-space:nowrap;background:var(--color-background-secondary)}
+.txn-table td{padding:8px 10px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:top}
+.txn-table tr:hover td{background:var(--color-background-secondary)}
+
+.badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase}
+.badge-ok{background:#EAF3DE;color:#3B6D11}
+.badge-warn{background:#FAEEDA;color:#854F0B}
+.badge-danger{background:#FCEBEB;color:#A32D2D}
+.badge-info{background:#E6F1FB;color:#185FA5}
+
+.step-card{border-left:3px solid var(--color-border-info);padding:12px 14px;margin-bottom:10px;background:var(--color-background-secondary);border-radius:0 var(--border-radius-md) var(--border-radius-md) 0}
+.step-card h4{font-size:13px;font-weight:600;color:var(--color-text-primary);margin-bottom:4px}
+.step-card p{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+
+.lock-callout{background:var(--color-background-warning);border:1.5px solid var(--color-border-warning);border-radius:var(--border-radius-md);padding:12px 14px;margin-top:12px;font-size:13px;color:var(--color-text-warning);font-weight:500}
+
+.log-area{max-height:340px;overflow-y:auto;border-radius:6px}
+
+.tab-row{display:flex;gap:0;border-bottom:2px solid var(--color-border-tertiary);margin-bottom:14px}
+.tab{padding:12px 16px;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s ease;font-weight:500}
+.tab:hover{color:var(--color-text-primary)}
+.tab.active{color:var(--color-text-primary);border-bottom-color:var(--color-border-info);background:linear-gradient(to bottom,transparent,rgba(55,138,221,0.05))}
+
+#chart-wrap{position:relative;width:100%;height:240px;border-radius:6px}
+
+.txn-feed { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+.txn-card { background: linear-gradient(135deg, var(--color-background-secondary) 0%, rgba(200, 200, 200, 0.05) 100%); border: 1px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 16px 18px; animation: slideIn 0.4s ease-out; position: relative; overflow: hidden; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.txn-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--color-border-tertiary); padding-bottom: 10px; }
+.txn-amt { font-size: 22px; font-weight: 600; color: var(--color-text-primary); }
+.txn-type-badge { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+.txn-type-badge.kyc { background: #E6F1FB; color: #185FA5; }
+.txn-type-badge.normal { background: #EAF3DE; color: #3B6D11; }
+.txn-type-badge.dispute { background: #FCEBEB; color: #A32D2D; }
+.txn-type-badge.flagged { background: #FAEEDA; color: #854F0B; }
+.txn-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.detail-item { background: var(--color-background-primary); border-radius: 6px; padding: 10px; border-left: 3px solid #378ADD; }
+.detail-label { font-size: 11px; color: var(--color-text-secondary); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; }
+.detail-val { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+.detail-val.green { color: #1D9E75; }
+.detail-val.red { color: #E24B4A; }
+.formula-dropdown { margin-top: 14px; }
+.dropdown-toggle { background: linear-gradient(135deg, var(--color-background-secondary), rgba(55,138,221,0.08)); border: 1px solid var(--color-border-info); border-radius: 6px; padding: 10px 12px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--color-text-info); display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
+.dropdown-toggle:hover { background: linear-gradient(135deg, rgba(55,138,221,0.1), rgba(55,138,221,0.12)); }
+.dropdown-toggle .arrow { transition: transform 0.2s ease; display: inline-block; }
+.dropdown-content { display: none; margin-top: 8px; background: var(--color-background-secondary); border: 1px solid var(--color-border-secondary); border-radius: 6px; padding: 14px; font-family: var(--font-mono); font-size: 11.5px; color: var(--color-text-secondary); line-height: 1.7; }
+.dropdown-content.open { display: block; animation: slideDown 0.2s ease; }
+@keyframes slideDown { from { opacity: 0; max-height: 0; overflow: hidden; } to { opacity: 1; max-height: 600px; } }
+.formula-line { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--color-border-tertiary); }
+.formula-line:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.formula-title { font-weight: 600; color: var(--color-text-primary); margin-bottom: 3px; }
+.formula-value { color: var(--color-text-primary); font-weight: 600; }
+.txn-scores { display: flex; gap: 16px; margin-bottom: 12px; padding: 10px 0; }
+.score-item { flex: 1; }
+.score-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 6px; }
+.score-bar-container { height: 24px; background: var(--color-background-secondary); border-radius: 4px; overflow: hidden; }
+.score-bar { height: 100%; background: linear-gradient(90deg, #1D9E75, #4CAF50); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: 600; }
+.score-bar.f { background: linear-gradient(90deg, #E24B4A, #F44336); }
+.formula-summary { background: var(--color-background-secondary); border-radius: 6px; padding: 10px 12px; font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; font-family: var(--font-mono); }
+.txn-status { display: inline-block; padding: 6px 12px; background: var(--color-background-info); color: var(--color-text-info); border-radius: 6px; font-size: 11px; font-weight: 600; }
+.txn-status.flagged { background: #FFF3CD; color: #997404; }
+.txn-status.normal { background: #DFF0D8; color: #3C763D; }
+.txn-status.kyc { background: #E6F1FB; color: #185FA5; }
+.transaction-timeline { margin-top: 16px; padding-top: 16px; border-top: 2px solid var(--color-border-tertiary); }
+
+@media (max-width: 600px) {
+  .metric-row { grid-template-columns: repeat(2, 1fr); }
+  .txn-details { grid-template-columns: repeat(2, 1fr); }
+}
+  </style>
+</head>
+<body>
+
+<h1>Adaptive Risk-Based Escrow — Simulator</h1>
+<p class="subtitle">JK Lakshmipat University · Minor Project PR1103 · Anmol Sahu · Ekansh Saraswat · Suryaansh Sharma</p>
+
+<div class="sim-wrap">
+<h2 class="sr-only">Adaptive Risk-Based Escrow System — interactive transaction simulator</h2>
+
+<div class="case-btns">
+  <button class="case-btn active" onclick="loadCase(0)">New user + KYC</button>
+  <button class="case-btn" onclick="loadCase(1)">Spike fraud (1k→30k)</button>
+  <button class="case-btn" onclick="loadCase(2)">Slow drift (CUSUM)</button>
+  <button class="case-btn" onclick="loadCase(3)">Manual / custom</button>
+</div>
+
+<div class="card">
+  <div class="section-title">User state</div>
+  <div class="metric-row">
+    <div class="metric"><div class="metric-label">Fraud Score F</div><div class="metric-val" id="m-f">0.00</div></div>
+    <div class="metric"><div class="metric-label">KYC Status</div><div class="metric-val" id="m-kyc">–</div></div>
+    <div class="metric"><div class="metric-label">Txns Done</div><div class="metric-val" id="m-txn">0</div></div>
+    <div class="metric"><div class="metric-label">Risk Level</div><div class="metric-val" id="m-risk">Normal</div></div>
+  </div>
+
+  <div class="tab-row">
+    <div class="tab active" onclick="switchTab('formula')">Formula trace</div>
+    <div class="tab" onclick="switchTab('history')">Txn history</div>
+    <div class="tab" onclick="switchTab('chart')">Score chart</div>
+  </div>
+
+  <div id="tab-formula">
+    <div id="formula-content"><p style="font-size:13px;color:var(--color-text-secondary)">Run a transaction to see formula values.</p></div>
+    <div id="lock-box" style="display:none" class="lock-callout"></div>
+  </div>
+
+  <div id="tab-history" style="display:none">
+    <div id="txn-feed" class="txn-feed"></div>
+    <div class="transaction-timeline">
+      <div class="log-area">
+        <table class="txn-table">
+          <thead><tr>
+            <th>#</th><th>Amount (₹)</th><th>Z-score</th><th>CUSUM S</th><th>Surge</th><th>F</th><th>Lock (hrs)</th><th>Status</th>
+          </tr></thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-chart" style="display:none">
+    <div id="chart-wrap"><canvas id="scoreChart" role="img" aria-label="Reliability and fraud score over transactions"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="section-title">Next transaction</div>
+  <div id="case-desc" style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px;padding:10px 12px;background:var(--color-background-secondary);border-radius:6px;border-left:3px solid var(--color-border-info)"></div>
+  <div class="txn-input-row">
+    <span style="font-size:13px;color:var(--color-text-secondary)">Amount ₹</span>
+    <input type="number" id="txn-amt" value="1000" min="1" />
+    <select id="txn-type" style="padding:10px 12px;border:1px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s ease">
+      <option value="normal">Normal escrow</option>
+      <option value="dispute">Dispute (penalty)</option>
+      <option value="kyc">Complete KYC</option>
+    </select>
+    <button class="run-btn" onclick="runTxn()">Add transaction ↗</button>
+    <button class="reset-btn" onclick="resetSim()">Reset</button>
+  </div>
+  <div id="queue-info" style="font-size:12px;color:var(--color-text-secondary);margin-top:8px;padding:8px 12px;background:var(--color-background-secondary);border-radius:6px;border-left:3px solid var(--color-border-info);display:none"></div>
+</div>
+
+</div>
+
+<script>
+let state = {
+  kyc: false, txns: [], cusumS: 0,
+  fHistory: [], labels: []
+};
+let autoQueue = [];
+let chart = null;
+let activeTab = 'formula';
+
+const KYC_FRAUD_SCORE = 0.5;  // Initial fraud score for new KYC users
+const T_MIN = 12, T_MAX = 168;
+const GOMPERTZ_BETA = 5, GAMMA0 = 0.5;
+
+function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function std(arr){
+  const m = mean(arr);
+  return arr.length > 1 ? Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/(arr.length-1)) : 0;
+}
+
+function computeF(amt, allTxns, cusumS){
+  const amounts = allTxns.map(t=>t.amount);
+  const mu = amounts.length ? mean(amounts) : amt;
+  const sigma = amounts.length > 1 ? std(amounts) : (amt * 0.3 || 1);
+
+  const z = sigma > 0 ? (amt - mu) / sigma : 0;
+  const zScore = Math.min(1, Math.max(0, Math.abs(z) / 4));
+
+  const k = 0.5 * sigma;
+  const newS = Math.max(0, cusumS + (amt - mu - k));
+  const h = 5 * (sigma || 1);
+  const cusumScore = Math.min(1, newS / (h || 1));
+
+  const now = Date.now();
+  const last24 = allTxns.filter(t => (now - t.ts) < 86400000).length + 1;
+  const avgDaily = allTxns.length ? (allTxns.length / Math.max(1, (now - allTxns[0].ts) / 86400000)) : 1;
+  const surge = Math.min(1, last24 / (avgDaily * 3 + 1));
+
+  const F = (zScore + cusumScore + surge) / 3;
+  return { F: Math.min(1, Math.max(0, F)), zScore, cusumScore, surge, newS, mu, sigma, z, k, h };
+}
+
+function computeLock(F){
+  const exponent = -Math.exp(GOMPERTZ_BETA * (F - GAMMA0));
+  const Tdelay = T_MIN + (T_MAX - T_MIN) * Math.exp(exponent);
+  return Tdelay;
+}
+
+function riskLabel(F){
+  if(F < 0.30) return ['Normal','badge-ok'];
+  if(F < 0.55) return ['Monitoring','badge-warn'];
+  if(F < 0.75) return ['Restricted','badge-warn'];
+  return ['Flagged','badge-danger'];
+}
+
+function runTxn(overrideAmt, overrideType){
+  const amt = overrideAmt || parseFloat(document.getElementById('txn-amt').value) || 1000;
+  const type = overrideType || document.getElementById('txn-type').value;
+
+  if(type === 'kyc'){
+    state.kyc = true;
+    const initialF = KYC_FRAUD_SCORE;
+    const lock = computeLock(initialF);
+    state.fHistory.push(initialF);
+    state.labels.push('KYC');
+    document.getElementById('m-kyc').textContent = 'Verified';
+    updateMetrics();
+    showFormulaKYC(initialF, lock);
+    addHistoryRow(0, 0, 0, 0, initialF, lock, 'kyc', {});
+    return;
+  }
+
+  const fd = computeF(amt, state.txns, state.cusumS);
+  const lock = computeLock(fd.F);
+  
+  state.cusumS = fd.newS;
+  state.txns.push({ amount: amt, ts: Date.now() });
+  state.fHistory.push(fd.F);
+  state.labels.push('Txn ' + (state.txns.length));
+
+  updateMetrics();
+  showFormula(amt, fd, lock, type);
+  addHistoryRow(amt, fd.zScore, fd.newS, fd.surge, fd.F, lock, type, fd);
+  updateChart();
+
+  if(autoQueue.length > 0){
+    const next = autoQueue.shift();
+    updateQueueInfo();
+    setTimeout(()=>runTxn(next.amt, next.type), 380);
+  }
+}
+
+function showFormulaKYC(initialF, lock){
+  document.getElementById('formula-content').innerHTML = `
+<div class="step-card"><h4>KYC + Bank Verification Completed</h4>
+<p>New user KYC verification successful. Fraud score baseline set to F = <span class="hi">${initialF.toFixed(4)}</span></p>
+<p>This represents a moderate baseline for a newly verified user, subject to monitoring via future transactions.</p></div>
+<div class="formula-box">F_KYC = ${KYC_FRAUD_SCORE.toFixed(4)} (baseline for new KYC users)
+Lock duration: T_delay = ${lock.toFixed(1)} hours (≈ ${(lock/24).toFixed(1)} days)</div>`;
+  
+  const lb = document.getElementById('lock-box');
+  lb.style.display = 'block';
+  lb.innerHTML = `Escrow will be locked for <strong>${lock.toFixed(1)} hours</strong> (≈ ${(lock/24).toFixed(1)} days). F=${initialF.toFixed(3)}.`;
+}
+
+function showFormula(amt, fd, lock, type){
+  const [rlabel] = riskLabel(fd.F);
+  
+  const exp1 = (GOMPERTZ_BETA * (fd.F - GAMMA0)).toFixed(4);
+  const exp2 = Math.exp(parseFloat(exp1)).toFixed(4);
+  const exp3 = (-parseFloat(exp2)).toFixed(4);
+  const exp4 = Math.exp(parseFloat(exp3)).toFixed(4);
+  const tRange = (T_MAX - T_MIN).toFixed(0);
+
+  document.getElementById('formula-content').innerHTML = `
+<div class="step-card"><h4>1 · Z-score (rolling spike detector)</h4>
+<p>μ = ${fd.mu.toFixed(2)} &nbsp;|&nbsp; σ = ${fd.sigma.toFixed(2)} &nbsp;|&nbsp; x<sub>t</sub> = ${amt.toFixed(0)}</p></div>
+<div class="formula-box">Z = (x_t − μ) / σ  =  (${amt} − ${fd.mu.toFixed(2)}) / ${fd.sigma.toFixed(2)}  =  <span class="hi">${fd.z.toFixed(3)}</span>
+F_z = min(1, |Z| / 4) = <span class="hi">${fd.zScore.toFixed(4)}</span></div>
+
+<div class="step-card"><h4>2 · CUSUM (drift detector)</h4>
+<p>k = 0.5σ = ${fd.k.toFixed(2)} &nbsp;|&nbsp; h = 5σ = ${fd.h.toFixed(2)} &nbsp;|&nbsp; S_prev = ${(fd.newS - Math.max(0, fd.newS)).toFixed(2)}</p></div>
+<div class="formula-box">S_t = max(0, S_prev + (x_t − μ − k))
+    = max(0, prev + (${amt} − ${fd.mu.toFixed(2)} − ${fd.k.toFixed(2)}))
+    = <span class="hi">${fd.newS.toFixed(2)}</span>
+F_cusum = min(1, S_t / h) = <span class="hi">${fd.cusumScore.toFixed(4)}</span></div>
+
+<div class="step-card"><h4>3 · Surge ratio (burst detector)</h4>
+<p>Txns in last 24h vs avg daily baseline</p></div>
+<div class="formula-box">F_surge = min(1, Txn24h / (AvgDaily × 3 + 1)) = <span class="hi">${fd.surge.toFixed(4)}</span></div>
+
+<div class="step-card"><h4>4 · Composite fraud score F</h4></div>
+<div class="formula-box">F = (F_z + F_cusum + F_surge) / 3
+  = (${fd.zScore.toFixed(4)} + ${fd.cusumScore.toFixed(4)} + ${fd.surge.toFixed(4)}) / 3
+  = <span class="hi">${fd.F.toFixed(4)}</span>   → ${rlabel}</div>
+
+<div class="step-card"><h4>5 · Gompertz lock duration T<sub>delay</sub></h4>
+<p>T_min=${T_MIN}h &nbsp;|&nbsp; T_max=${T_MAX}h &nbsp;|&nbsp; β_g=${GOMPERTZ_BETA} &nbsp;|&nbsp; γ₀=${GAMMA0}</p></div>
+<div class="formula-box">inner = β(F − γ₀) = ${GOMPERTZ_BETA}×(${fd.F.toFixed(4)} − ${GAMMA0}) = ${exp1}
+e^inner = ${exp2}
+e^(−e^inner) = ${exp4}
+T_delay = T_min + (T_max−T_min)×e^(−e^inner)
+        = ${T_MIN} + ${tRange}×${exp4}
+        = <span class="hi">${lock.toFixed(1)} hours</span></div>`;
+
+  const lb = document.getElementById('lock-box');
+  lb.style.display = 'block';
+  lb.innerHTML = `Escrow will be locked for <strong>${lock.toFixed(1)} hours</strong> (≈ ${(lock/24).toFixed(1)} days). F=${fd.F.toFixed(3)}.`;
+}
+
+function addHistoryRow(amt, fz, fcusum, surge, F, lock, type, fd){
+  // Add to table
+  const tbody = document.getElementById('history-body');
+  const [rl, rc] = riskLabel(F);
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${tbody.rows.length + 1}</td>
+    <td>${amt ? '₹'+Number(amt).toLocaleString() : '–'}</td>
+    <td>${typeof fz === 'number' ? fz.toFixed(3) : '–'}</td>
+    <td>${typeof fcusum === 'number' ? fcusum.toFixed(2) : '–'}</td>
+    <td>${typeof surge === 'number' ? surge.toFixed(3) : '–'}</td>
+    <td>${F ? F.toFixed(3) : '–'}</td>
+    <td>${lock ? lock.toFixed(1)+'h' : '–'}</td>
+    <td><span class="badge ${rc}">${type==='kyc'?'KYC':type==='dispute'?'Dispute':rl}</span></td>`;
+  tbody.appendChild(tr);
+
+  // Add to transaction feed with detailed card
+  const feed = document.getElementById('txn-feed');
+  let typeLabel = 'normal';
+  let typeColor = 'normal';
+  if(type === 'kyc') { typeLabel = 'KYC'; typeColor = 'kyc'; }
+  else if(type === 'dispute') { typeLabel = 'Dispute'; typeColor = 'dispute'; }
+  
+  const isFlagged = F >= 0.55;
+  const flaggedLabel = isFlagged ? ' — Flagged' : '';
+  
+  const fBarWidth = Math.round(F * 100);
+  
+  const formulaSummary = type === 'kyc' 
+    ? `F = ${F.toFixed(4)} (KYC baseline)`
+    : `F = (${fz.toFixed(3)} + ${fcusum.toFixed(3)} + ${surge.toFixed(3)}) / 3 = ${F.toFixed(4)}`;
+
+  const dropdownId = 'dropdown-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+  let formulaBreakdown = '';
+  if(type === 'kyc'){
+    formulaBreakdown = `
+<div class="formula-line">
+  <div class="formula-title">KYC Verification</div>
+  <div>F_baseline = ${KYC_FRAUD_SCORE.toFixed(4)}</div>
+  <div>New users assigned this moderate baseline for fraud monitoring</div>
+  <div class="formula-value">→ F = ${F.toFixed(4)}</div>
+</div>`;
+  } else {
+    const fz_calc = fd && fd.zScore ? fd.zScore.toFixed(4) : fz.toFixed(4);
+    const fcusum_calc = fd && fd.cusumScore ? fd.cusumScore.toFixed(4) : fcusum.toFixed(4);
+    const surge_calc = fd && fd.surge ? fd.surge.toFixed(4) : surge.toFixed(4);
+    
+    formulaBreakdown = `
+<div class="formula-line">
+  <div class="formula-title">1. Z-SCORE (Spike Detector)</div>
+  <div>μ (mean) = ${(fd && fd.mu) ? fd.mu.toFixed(2) : '–'}</div>
+  <div>σ (std dev) = ${(fd && fd.sigma) ? fd.sigma.toFixed(2) : '–'}</div>
+  <div>x_t (amount) = ${amt.toFixed(0)}</div>
+  <div>Z = (x_t − μ) / σ = ${(fd && fd.z) ? `(${amt.toFixed(0)} − ${fd.mu.toFixed(2)}) / ${fd.sigma.toFixed(2)} = ${fd.z.toFixed(4)}` : '–'}</div>
+  <div>F_z = min(1, |Z| / 4)</div>
+  <div class="formula-value">→ F_z = ${fz_calc}</div>
+</div>
+
+<div class="formula-line">
+  <div class="formula-title">2. CUSUM (Drift Detector)</div>
+  <div>k (slack) = 0.5 × σ = ${(fd && fd.k) ? `0.5 × ${fd.sigma.toFixed(2)} = ${fd.k.toFixed(2)}` : '–'}</div>
+  <div>h (threshold) = 5 × σ = ${(fd && fd.h) ? `5 × ${fd.sigma.toFixed(2)} = ${fd.h.toFixed(2)}` : '–'}</div>
+  <div>S_t = max(0, S_prev + (x_t − μ − k)) = ${(fd && fd.newS !== undefined) ? fd.newS.toFixed(4) : '–'}</div>
+  <div>F_cusum = min(1, S_t / h)</div>
+  <div class="formula-value">→ F_cusum = ${fcusum_calc}</div>
+</div>
+
+<div class="formula-line">
+  <div class="formula-title">3. SURGE (Burst Detector)</div>
+  <div>Txn24h = transactions in last 24h</div>
+  <div>AvgDaily = total transactions / days active</div>
+  <div>F_surge = min(1, Txn24h / (AvgDaily × 3 + 1))</div>
+  <div class="formula-value">→ F_surge = ${surge_calc}</div>
+</div>
+
+<div class="formula-line">
+  <div class="formula-title">4. COMPOSITE FRAUD SCORE (F)</div>
+  <div>F = (F_z + F_cusum + F_surge) / 3</div>
+  <div>F = (${fz_calc} + ${fcusum_calc} + ${surge_calc}) / 3</div>
+  <div class="formula-value">→ F = ${F.toFixed(4)}</div>
+</div>
+
+<div class="formula-line">
+  <div class="formula-title">5. GOMPERTZ LOCK DURATION</div>
+  <div>Parameters: T_min=${T_MIN}h, T_max=${T_MAX}h, β=${GOMPERTZ_BETA}, γ₀=${GAMMA0}</div>
+  <div>inner = β(F − γ₀) = ${GOMPERTZ_BETA}×(${F.toFixed(4)} − ${GAMMA0}) = ${(GOMPERTZ_BETA * (F - GAMMA0)).toFixed(4)}</div>
+  <div>T_delay = T_min + (T_max − T_min) × e^(−e^inner)</div>
+  <div class="formula-value">→ T_delay = ${lock.toFixed(2)} hours (≈ ${(lock/24).toFixed(1)} days)</div>
+</div>`;
+  }
+
+  function toggleDropdown(){
+    const content = document.getElementById(dropdownId);
+    content.classList.toggle('open');
+    const arrow = event.currentTarget.querySelector('.arrow');
+    arrow.style.transform = content.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0)';
+  }
+
+  const card = document.createElement('div');
+  card.className = 'txn-card';
+  card.innerHTML = `
+    <div class="txn-header">
+      <div class="txn-amt">₹${amt ? Number(amt).toLocaleString() : '0'}</div>
+      <span class="txn-type-badge ${typeColor}">${typeLabel}${flaggedLabel}</span>
+    </div>
+    <div class="txn-details">
+      <div class="detail-item">
+        <div class="detail-label">Z-Score</div>
+        <div class="detail-val">${typeof fz === 'number' ? fz.toFixed(3) : '–'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">CUSUM S</div>
+        <div class="detail-val">${typeof fcusum === 'number' ? fcusum.toFixed(2) : '–'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Surge</div>
+        <div class="detail-val">${typeof surge === 'number' ? surge.toFixed(3) : '–'}</div>
+      </div>
+      <div class="detail-item">
+        <div class="detail-label">Fraud Score F</div>
+        <div class="detail-val red">${F ? F.toFixed(4) : '–'}</div>
+      </div>
+    </div>
+    <div class="txn-scores">
+      <div class="score-item">
+        <div class="score-label">Fraud Score F</div>
+        <div class="score-bar-container">
+          <div class="score-bar f" style="width: ${fBarWidth}%">
+            <span>${F.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="formula-summary">${formulaSummary}</div>
+    <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <span class="txn-status ${isFlagged ? 'flagged' : (type === 'kyc' ? 'kyc' : 'normal')}">${isFlagged ? '⚠️ Flagged for review' : (type === 'kyc' ? '✓ KYC Complete' : '✓ Normal')}</span>
+      <span style="font-size: 12px; color: var(--color-text-secondary); font-weight: 600;">🔒 ${lock ? lock.toFixed(1) + 'h' : '–'}</span>
+    </div>
+    <div class="formula-dropdown">
+      <div class="dropdown-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.arrow').style.transform=this.nextElementSibling.classList.contains('open')?'rotate(180deg)':'rotate(0)'">
+        <span>📊 View Detailed Formula Breakdown</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="dropdown-content" id="${dropdownId}">
+        ${formulaBreakdown}
+      </div>
+    </div>
+  `;
+  feed.insertBefore(card, feed.firstChild);
+}
+
+function updateMetrics(){
+  const lastF = state.fHistory.length ? state.fHistory[state.fHistory.length-1] : 0;
+  const [rlabel] = riskLabel(lastF);
+  document.getElementById('m-f').textContent = lastF.toFixed(4);
+  document.getElementById('m-risk').textContent = rlabel;
+  document.getElementById('m-kyc').textContent = state.kyc ? 'Verified' : 'Pending';
+  document.getElementById('m-txn').textContent = state.txns.length;
+}
+
+function updateChart(){
+  if(!chart){
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: state.labels,
+        datasets: [
+          { label: 'F (fraud score)', data: state.fHistory, borderColor: '#E24B4A', backgroundColor: 'transparent', tension: 0.3, pointRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true } },
+        scales: {
+          y: { min: 0, max: 1, ticks: { callback: v => v.toFixed(1) } },
+          x: { ticks: { autoSkip: true, maxTicksLimit: 10, font: { size: 11 } } }
+        }
+      }
+    });
+  } else {
+    chart.data.labels = state.labels;
+    chart.data.datasets[0].data = state.fHistory;
+    chart.update();
+  }
+}
+
+function switchTab(name){
+  activeTab = name;
+  ['formula','history','chart'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t===name ? 'block' : 'none';
+    document.querySelectorAll('.tab').forEach((el,i) => {
+      el.classList.toggle('active', ['formula','history','chart'][i] === name);
+    });
+  });
+}
+
+function updateQueueInfo(){
+  const q = autoQueue;
+  const queueEl = document.getElementById('queue-info');
+  if(q.length > 0){
+    queueEl.textContent = `⏳ ${q.length} transaction(s) queued — running automatically...`;
+    queueEl.style.display = 'block';
+  } else {
+    queueEl.style.display = 'none';
+  }
+}
+
+function loadCase(n){
+  resetSim();
+  document.querySelectorAll('.case-btn').forEach((b,i) => b.classList.toggle('active', i===n));
+  const desc = document.getElementById('case-desc');
+
+  if(n === 0){
+    desc.textContent = 'Case 1: New user registers → KYC → first few small transactions to see R grow.';
+    autoQueue = [
+      {amt:0, type:'kyc'},
+      {amt:500, type:'normal'},
+      {amt:800, type:'normal'},
+      {amt:1200, type:'normal'},
+      {amt:1000, type:'normal'},
+    ];
+    updateQueueInfo();
+    setTimeout(()=>runTxn(0,'kyc'), 200);
+  } else if(n === 1){
+    desc.textContent = 'Case 2: Steady 1k transactions → sudden 30k spike → watch Z-score and F explode.';
+    autoQueue = [
+      {amt:1000, type:'normal'},{amt:1000, type:'normal'},{amt:1100, type:'normal'},
+      {amt:950, type:'normal'},{amt:1050, type:'normal'},{amt:1000, type:'normal'},
+      {amt:30000, type:'normal'},
+      {amt:1000, type:'normal'},
+    ];
+    updateQueueInfo();
+    runTxn(autoQueue.shift().amt, 'normal');
+  } else if(n === 2){
+    desc.textContent = 'Case 3: Gradual amount drift — CUSUM accumulates slowly until it catches the pattern.';
+    autoQueue = [
+      {amt:1000, type:'normal'},{amt:1200, type:'normal'},{amt:1500, type:'normal'},
+      {amt:2000, type:'normal'},{amt:2800, type:'normal'},{amt:3800, type:'normal'},
+      {amt:5000, type:'normal'},{amt:7000, type:'normal'},{amt:9500, type:'normal'},
+      {amt:13000, type:'normal'},
+    ];
+    updateQueueInfo();
+    runTxn(autoQueue.shift().amt, 'normal');
+  } else {
+    desc.textContent = 'Enter any amount and type, then click "Add transaction" to simulate manually.';
+    autoQueue = [];
+    document.getElementById('queue-info').textContent = '';
+  }
+}
+
+function resetSim(){
+  state = { kyc: false, txns: [], cusumS: 0, fHistory: [], labels: [] };
+  autoQueue = [];
+  if(chart){ chart.destroy(); chart = null; }
+  document.getElementById('history-body').innerHTML = '';
+  document.getElementById('txn-feed').innerHTML = '';
+  document.getElementById('formula-content').innerHTML = '<p style="font-size:13px;color:var(--color-text-secondary)">Run a transaction to see formula values.</p>';
+  document.getElementById('lock-box').style.display = 'none';
+  document.getElementById('queue-info').textContent = '';
+  updateMetrics();
+}
+
+updateMetrics();
+loadCase(0);
+</script>
+</body>
+</html>
+</body>
+</html>

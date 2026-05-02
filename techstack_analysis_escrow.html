@@ -1,0 +1,296 @@
+
+<h2 class="sr-only">Tech stack analysis for the Adaptive Risk-Based Escrow System — comparisons, pros, and interview Q&A</h2>
+
+<style>
+.ts-wrap{padding:1rem 0}
+.tab-row{display:flex;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:20px;gap:0}
+.tab{padding:8px 18px;font-size:13px;cursor:pointer;color:var(--color-text-secondary);border-bottom:2px solid transparent;margin-bottom:-0.5px}
+.tab.active{color:var(--color-text-primary);border-bottom-color:var(--color-text-primary)}
+.section{margin-bottom:24px}
+.section-label{font-size:11px;font-weight:500;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.comp-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px}
+.comp-card.chosen{border:1.5px solid #378ADD;background:var(--color-background-info)}
+.comp-card h3{font-size:14px;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.badge-chosen{font-size:10px;font-weight:500;padding:2px 8px;border-radius:var(--border-radius-md);background:#378ADD;color:#fff}
+.badge-alt{font-size:10px;font-weight:500;padding:2px 8px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-secondary)}
+.pro-list,.con-list{font-size:12px;color:var(--color-text-secondary);margin:0;padding:0;list-style:none}
+.pro-list li::before{content:"+ ";color:#1D9E75;font-weight:500}
+.con-list li::before{content:"– ";color:#E24B4A;font-weight:500}
+.pro-list li,.con-list li{margin-bottom:3px}
+.verdict{font-size:12px;color:var(--color-text-secondary);margin-top:10px;padding:8px 10px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border-left:2px solid #378ADD;border-top-left-radius:0;border-bottom-left-radius:0}
+.verdict strong{color:var(--color-text-primary)}
+.qa-item{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);margin-bottom:10px;overflow:hidden}
+.qa-q{padding:12px 14px;font-size:13px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:var(--color-background-primary)}
+.qa-q:hover{background:var(--color-background-secondary)}
+.qa-a{padding:12px 14px;font-size:13px;color:var(--color-text-secondary);background:var(--color-background-secondary);border-top:0.5px solid var(--color-border-tertiary);display:none;line-height:1.6}
+.qa-a code{font-family:var(--font-mono);font-size:11px;background:var(--color-background-primary);padding:1px 5px;border-radius:4px;border:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary)}
+.qa-a .hi{color:var(--color-text-primary);font-weight:500}
+.arrow{font-size:12px;color:var(--color-text-tertiary);transition:transform .2s}
+.arrow.open{transform:rotate(90deg)}
+.tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:var(--border-radius-md);margin-right:4px;margin-bottom:4px;font-weight:500}
+.tag-hard{background:#FCEBEB;color:#A32D2D}
+.tag-mid{background:#FAEEDA;color:#854F0B}
+.tag-soft{background:#EAF3DE;color:#3B6D11}
+@media(prefers-color-scheme:dark){
+  .tag-hard{background:#501313;color:#F7C1C1}
+  .tag-mid{background:#412402;color:#FAC775}
+  .tag-soft{background:#173404;color:#C0DD97}
+}
+</style>
+
+<div class="ts-wrap">
+<div class="tab-row">
+  <div class="tab active" onclick="switchTab('compare')">Stack comparisons</div>
+  <div class="tab" onclick="switchTab('pros')">Why this stack?</div>
+  <div class="tab" onclick="switchTab('qa')">Interview Q&A</div>
+</div>
+
+<!-- COMPARE TAB -->
+<div id="tab-compare">
+
+<div class="section">
+<div class="section-label">Database — PostgreSQL vs MongoDB</div>
+<div class="comp-grid">
+<div class="comp-card chosen">
+  <h3>PostgreSQL (Neon) <span class="badge-chosen">chosen</span></h3>
+  <ul class="pro-list">
+    <li>ACID transactions with <code>SELECT FOR UPDATE</code> — critical for atomic wallet transfers</li>
+    <li>Relational joins for risk scoring (txn history + CUSUM state + user in one query)</li>
+    <li>TimescaleDB-compatible hypertable design for time-series analytics</li>
+    <li>Schema enforcement prevents malformed risk snapshots</li>
+    <li>Neon serverless = no local DB needed, instant onboarding</li>
+  </ul>
+</div>
+<div class="comp-card">
+  <h3>MongoDB <span class="badge-alt">alternative</span></h3>
+  <ul class="con-list">
+    <li>No native multi-document ACID before v4 — wallet double-spend risk</li>
+    <li>No JOINs — risk score computation needs multiple round trips</li>
+    <li>Schema-less = accidental omission of risk snapshot fields</li>
+    <li>Aggregation pipeline complex for rolling Z-score window queries</li>
+  </ul>
+  <ul class="pro-list" style="margin-top:6px">
+    <li>Better for unstructured evidence blobs (dispute files)</li>
+  </ul>
+</div>
+</div>
+<div class="verdict"><strong>Verdict:</strong> The relational risk model demands SQL. CUSUM state joins + wallet row-locking + immutable R/F snapshots are all naturally expressed in PostgreSQL and awkward in MongoDB.</div>
+</div>
+
+<div class="section">
+<div class="section-label">Frontend — React (Vite) vs Next.js</div>
+<div class="comp-grid">
+<div class="comp-card chosen">
+  <h3>React + Vite <span class="badge-chosen">chosen</span></h3>
+  <ul class="pro-list">
+    <li>Pure SPA — MetaMask injected provider works cleanly in browser context</li>
+    <li>Vite HMR is significantly faster than Next.js dev server for iteration</li>
+    <li>No SSR complexity — all data is user-specific, behind JWT auth</li>
+    <li>Simpler deployment — static build, any CDN</li>
+    <li>TanStack Query handles server-state caching without SSR hydration issues</li>
+  </ul>
+</div>
+<div class="comp-card">
+  <h3>Next.js <span class="badge-alt">alternative</span></h3>
+  <ul class="con-list">
+    <li>SSR/SSG adds no value — pages are auth-gated, not public</li>
+    <li>MetaMask (<code>window.ethereum</code>) breaks on server-side renders</li>
+    <li>Heavier setup for what is fundamentally a dashboard app</li>
+  </ul>
+  <ul class="pro-list" style="margin-top:6px">
+    <li>Built-in API routes could replace Express for simpler deployments</li>
+    <li>Better SEO if a public landing page were needed</li>
+  </ul>
+</div>
+</div>
+<div class="verdict"><strong>Verdict:</strong> MetaMask depends on <code>window.ethereum</code> which crashes in SSR. React+Vite is the correct choice for a wallet-integrated dashboard.</div>
+</div>
+
+<div class="section">
+<div class="section-label">Backend — Node.js/Express vs alternatives</div>
+<div class="comp-grid">
+<div class="comp-card chosen">
+  <h3>Node.js + Express v5 <span class="badge-chosen">chosen</span></h3>
+  <ul class="pro-list">
+    <li>Same language (JS/ESM) as frontend — shared validation schemas (Zod/Joi)</li>
+    <li>ethers.js v6 runs natively — no FFI or subprocess for blockchain calls</li>
+    <li>Express v5 async error handling — no try-catch boilerplate</li>
+    <li>Large ecosystem: jsonwebtoken, bcrypt, emailjs all available</li>
+  </ul>
+</div>
+<div class="comp-card">
+  <h3>FastAPI (Python) <span class="badge-alt">alternative</span></h3>
+  <ul class="pro-list">
+    <li>Native numpy/scipy for statistical computation (Z-score, CUSUM)</li>
+    <li>Auto-generated OpenAPI docs</li>
+    <li>Better type safety with Pydantic</li>
+  </ul>
+  <ul class="con-list">
+    <li>No native ethers.js — needs web3.py which lags behind</li>
+    <li>Two-language stack increases cognitive overhead</li>
+  </ul>
+</div>
+</div>
+<div class="verdict"><strong>Verdict:</strong> ethers.js is the gold standard for EVM interaction. Keeping the whole stack in JavaScript eliminates the language-boundary friction for blockchain calls.</div>
+</div>
+
+<div class="section">
+<div class="section-label">Smart contract — Solidity vs Rust (Solana)</div>
+<div class="comp-grid">
+<div class="comp-card chosen">
+  <h3>Solidity + Hardhat <span class="badge-chosen">chosen</span></h3>
+  <ul class="pro-list">
+    <li>EVM is the most mature smart contract environment</li>
+    <li>Hardhat local node = instant resets, console.log in contracts</li>
+    <li>OpenZeppelin security patterns (checks-effects-interactions)</li>
+    <li>Finite state machine naturally maps to Solidity modifiers</li>
+    <li>ABI encoding enables backend receipt verification</li>
+  </ul>
+</div>
+<div class="comp-card">
+  <h3>Rust / Solana Programs <span class="badge-alt">alternative</span></h3>
+  <ul class="pro-list">
+    <li>~65,000 TPS vs Ethereum's ~15 TPS</li>
+    <li>Sub-cent transaction fees</li>
+  </ul>
+  <ul class="con-list">
+    <li>No Hardhat equivalent — testing is harder</li>
+    <li>Account model is harder to map to escrow state machine</li>
+    <li>Rust learning curve much steeper than Solidity</li>
+  </ul>
+</div>
+</div>
+<div class="verdict"><strong>Verdict:</strong> For a local dev/academic project the Hardhat local node is invaluable. EVM's ABI-decoded receipt verification is the foundation of the anti-spoofing architecture.</div>
+</div>
+
+<div class="section">
+<div class="section-label">Blockchain — Local Hardhat vs Sepolia Testnet vs Mainnet</div>
+<div class="comp-grid">
+<div class="comp-card chosen">
+  <h3>Hardhat local node <span class="badge-chosen">chosen</span></h3>
+  <ul class="pro-list">
+    <li>Instant mining — no 12s block wait during development</li>
+    <li>Free ETH from test accounts — no faucet dependency</li>
+    <li>Full reset between test runs — reproducible state</li>
+    <li>console.log in Solidity for debugging</li>
+  </ul>
+</div>
+<div class="comp-card">
+  <h3>Sepolia testnet <span class="badge-alt">planned future</span></h3>
+  <ul class="pro-list">
+    <li>Real network conditions — latency, mempool, reorgs</li>
+    <li>Shareable — evaluators don't need to run a local node</li>
+  </ul>
+  <ul class="con-list">
+    <li>Faucet dependency — can run dry</li>
+    <li>12s block time slows iteration</li>
+  </ul>
+</div>
+</div>
+</div>
+
+</div>
+
+<!-- PROS TAB -->
+<div id="tab-pros" style="display:none">
+<div class="section">
+<div class="section-label">Why each technology was the right call</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)">Neon serverless PostgreSQL — why not a local DB? <span class="arrow">▶</span></div>
+<div class="qa-a">Neon provides a PostgreSQL endpoint accessible directly from Node.js over HTTPS. This eliminates local database provisioning entirely — evaluators clone the repo, add the <code>DATABASE_URL</code> to <code>.env</code>, and the app works. It also means the same DB works whether the backend runs on a laptop or a cloud instance. The <code>@neondatabase/serverless</code> driver handles connection pooling automatically, which matters because each Express request can be a separate serverless invocation.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)">ethers.js v6 on the backend — why use it for verification? <span class="arrow">▶</span></div>
+<div class="qa-a">The backend uses <code>ethers.Interface</code> to ABI-decode transaction receipts fetched from the Hardhat RPC endpoint. This means the backend doesn't just check that a tx hash exists — it checks that the tx emitted the correct event (<code>EscrowCreated</code>, <code>EscrowReleased</code>, etc.) with the correct parameters. A spoofing attempt would require the attacker to have the private key that signed the original transaction, making off-chain manipulation economically impractical.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)">TanStack Query v5 — why not Redux or Zustand? <span class="arrow">▶</span></div>
+<div class="qa-a">Redux and Zustand manage client-side state. The escrow platform's data is fundamentally server-driven — escrow states, wallet balances, and risk scores all live in the database. TanStack Query is purpose-built for server-state: it handles caching, background refetching, stale-while-revalidate, and loading/error states. This means the dashboard automatically reflects the latest risk score after a transaction without manual cache invalidation code.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)">React Hook Form + Zod — why both? <span class="arrow">▶</span></div>
+<div class="qa-a">React Hook Form handles form registration, submission, and error state with minimal re-renders (uncontrolled inputs). Zod provides the schema definition and type inference. The combination means the same Zod schema that validates the form also generates TypeScript types — you define the shape once and get both runtime validation and compile-time type safety. The backend uses Joi for the same schemas, so validation logic is structurally mirrored across the stack.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)">Checks-effects-interactions pattern in the Solidity contract <span class="arrow">▶</span></div>
+<div class="qa-a">Atzei et al.'s survey (cited in the report) describes the DAO hack — a reentrancy vulnerability that drained ~$60M. The pattern prevents this: (1) <strong>Check</strong> preconditions (is state valid? is caller authorised?), (2) <strong>Effect</strong> — update all state variables, (3) <strong>Interact</strong> — only then make external ETH transfers. If a malicious contract tries to re-enter during step 3, all state is already updated so the second call fails the checks in step 1.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)">Why simulate fiat wallet in PostgreSQL rather than using real ETH? <span class="arrow">▶</span></div>
+<div class="qa-a">The target users are Indian P2P participants transacting in INR. Requiring them to acquire and manage ETH creates a UX barrier and regulatory complexity. The simulated wallet lets the platform demonstrate escrow mechanics — lock, release, dispute, refund — using rupee-denominated amounts, while the Ethereum smart contract handles the trustless enforcement layer using a corresponding ETH representation. This hybrid mirrors how real fintech products (like Razorpay Escrow) work under the hood.</div>
+</div>
+
+</div>
+</div>
+
+<!-- QA TAB -->
+<div id="tab-qa" style="display:none">
+<div class="section">
+<div class="section-label">Likely interview / viva questions</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-hard">hard</span> Why PostgreSQL and not a time-series DB like InfluxDB for the transaction log? <span class="arrow">▶</span></div>
+<div class="qa-a">InfluxDB is optimised for append-only metrics with no relational context. The risk model needs to <span class="hi">join</span> the transaction log with the user profile, CUSUM state, and escrow record in a single query. InfluxDB has no concept of foreign keys or joins. PostgreSQL with a hypertable design (TimescaleDB-style partitioning on <code>created_at</code>) gives time-series query performance while retaining full relational capability. If we needed sub-millisecond IoT-scale writes, InfluxDB would win — but escrow transactions are low-frequency and high-relational.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-hard">hard</span> What happens if the Hardhat node goes down after a tx is submitted but before the backend verifies it? <span class="arrow">▶</span></div>
+<div class="qa-a">The backend receipt verification uses <code>ethers.JsonRpcProvider.getTransactionReceipt(txHash)</code>. If the node is down, this throws — the backend returns a 503 and the database write never happens. The escrow stays in its previous state. The user must retry. This is correct behaviour — it's better to require a retry than to accept an unverified state update. In a production system this would be handled by a message queue (BullMQ, SQS) that retries the verification job with exponential backoff.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-hard">hard</span> CUSUM requires a stable mean and sigma. What happens for a new user with 2–3 transactions? <span class="arrow">▶</span></div>
+<div class="qa-a">This is the cold-start problem. With fewer than ~5 transactions, sigma is either zero or extremely small, making the CUSUM sensitivity very high — almost any transaction would trigger an alarm. The system initialises sigma to <code>amount × 0.3</code> as a fallback when history is thin. The correct production solution is a cold-start phase (already in the schema as <code>is_restricted_phase</code>) where new users have fixed, conservative escrow limits regardless of risk score until they accumulate enough history for the statistical detectors to calibrate properly. This is noted in the report as designed but not yet implemented.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-mid">medium</span> Why is the Gompertz function used for lock duration rather than a simpler linear formula? <span class="arrow">▶</span></div>
+<div class="qa-a">A linear formula like <code>T = T_min + (1 - R) × range</code> produces abrupt changes near the boundaries. The Gompertz function is an S-curve — it changes slowly at extreme values of R and F (very trusted or very risky users) and steeply in the middle transition zone. This means a slightly anomalous transaction for a highly trusted user doesn't dramatically increase their lock time, and a slightly improved score for a high-risk user doesn't dramatically reduce it. The non-linearity creates hysteresis that makes the system harder to game through small, incremental trust-building followed by a large fraud attempt.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-mid">medium</span> Why JWT over session cookies for authentication? <span class="arrow">▶</span></div>
+<div class="qa-a">JWT is stateless — the server doesn't need to look up a session in the database on every request. The token is verified by the middleware using the secret key alone. This matters for the escrow platform because multiple escrow state updates, wallet queries, and risk score fetches all happen in rapid succession during a user session. Stateless auth means each of these requests is independently verifiable without a session-store round trip. The downside is that JWTs cannot be invalidated before expiry — a logout just deletes the token client-side. For high-security operations (wallet withdrawals), the 6-digit security PIN provides a second factor that compensates for this limitation.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-mid">medium</span> React vs Next.js — when would you choose Next.js for this project? <span class="arrow">▶</span></div>
+<div class="qa-a">If the escrow platform needed a public-facing marketing page, transaction explorer, or dispute tracker that search engines should index, Next.js SSR/SSG would be justified. Also, if MetaMask were replaced by a custodial wallet (where private keys live server-side), the SSR constraint disappears and Next.js API routes could eliminate the separate Express server, simplifying deployment. For the current architecture — private dashboard + MetaMask + separate Express backend — React+Vite is strictly better.</div>
+</div>
+
+<div class="qa-item">
+<div class="qa-q" onclick="toggle(this)"><span class="tag tag-soft">conceptual</span> What is the Byzantine Generals problem and does it apply here? <span class="arrow">▶</span></div>
+<div class="qa-a">The Byzantine Generals problem asks how distributed nodes can reach consensus when some nodes may be malicious or faulty. Ethereum's consensus mechanism (Proof of Stake post-Merge) solves this by requiring validators to stake ETH as collateral — dishonest validators lose their stake (slashing). This project uses a local Hardhat node which has a single validator (the node itself), so Byzantine fault tolerance is irrelevant locally. On Sepolia testnet it becomes relevant — the system relies on Ethereum's consensus finality for the anti-spoofing guarantee. The 6-block confirmation wait recommended for production ETH transactions is the practical implication.</div>
+</div>
+
+</div>
+</div>
+
+</div>
+
+<script>
+let activeTab = 'compare';
+function switchTab(name){
+  activeTab = name;
+  ['compare','pros','qa'].forEach(t=>{
+    document.getElementById('tab-'+t).style.display = t===name?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['compare','pros','qa'][i]===name);
+  });
+}
+function toggle(qEl){
+  const a = qEl.nextElementSibling;
+  const arrow = qEl.querySelector('.arrow');
+  const isOpen = a.style.display === 'block';
+  a.style.display = isOpen ? 'none' : 'block';
+  arrow.classList.toggle('open', !isOpen);
+}
+</script>
