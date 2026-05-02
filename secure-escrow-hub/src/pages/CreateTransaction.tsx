@@ -47,7 +47,8 @@ const CreateTransaction = () => {
 
   const [riskPreview, setRiskPreview] = useState({
     level: 'low' as const,
-    score: 15,
+    score: 0.1,
+    riskScoreNumeric: 0.1,
     factors: [] as string[],
   });
 
@@ -69,33 +70,67 @@ const CreateTransaction = () => {
     fetchUsers();
   }, []);
 
+  const calculateRiskScore = (amount: string, counterpartyId: string) => {
+    const numAmount = parseFloat(amount);
+    let amountRisk = 0;
+    let factors: string[] = [];
+
+    // Amount-based risk (0-0.6 contribution)
+    if (numAmount > 100000) {
+      amountRisk = 0.5;
+      factors.push('Large transaction amount (>₹100k)');
+    } else if (numAmount > 50000) {
+      amountRisk = 0.3;
+      factors.push('Moderate transaction size (₹50k-100k)');
+    } else if (numAmount > 0) {
+      amountRisk = 0.1;
+    }
+
+    // Counterparty-based risk (0-0.4 contribution)
+    let counterpartyRisk = 0;
+    const selectedUser = users.find(user => user.id === counterpartyId);
+    
+    if (selectedUser) {
+      // Convert reliability_score (0-100) to risk (0-1)
+      // High reliability (100) = low risk (0), Low reliability (0) = high risk (1)
+      const reliabilityScore = selectedUser.reliability_score || 50;
+      counterpartyRisk = (100 - reliabilityScore) / 100;
+      
+      if (reliabilityScore < 40) {
+        factors.push(`Counterparty low reliability (${reliabilityScore}/100)`);
+      } else if (reliabilityScore < 70) {
+        factors.push(`Counterparty moderate reliability (${reliabilityScore}/100)`);
+      }
+    }
+
+    // Combined risk score (0-1 scale, where 1 = high risk, 0 = low risk)
+    const finalScore = Math.min(1, amountRisk * 0.6 + counterpartyRisk * 0.4);
+    
+    // Map to risk level
+    let level: 'low' | 'medium' | 'high' = 'low';
+    if (finalScore > 0.75) {
+      level = 'high';
+    } else if (finalScore > 0.4) {
+      level = 'medium';
+    }
+
+    return {
+      level,
+      score: Math.round(finalScore * 100),
+      riskScoreNumeric: finalScore,
+      factors,
+    };
+  };
+
   const handleInputChange = (field: keyof CreateEscrowForm, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
 
-    if (field === 'amount') {
-      const numAmount = parseFloat(value);
-      if (numAmount > 100000) {
-        setRiskPreview(prev => ({
-          ...prev,
-          level: 'high',
-          score: 85,
-          factors: ['Large transaction amount', 'Exceeds typical range'],
-        }));
-      } else if (numAmount > 50000) {
-        setRiskPreview(prev => ({
-          ...prev,
-          level: 'medium',
-          score: 45,
-          factors: ['Moderate transaction size'],
-        }));
-      } else {
-        setRiskPreview(prev => ({
-          ...prev,
-          level: 'low',
-          score: 15,
-          factors: [],
-        }));
-      }
+    // Update risk preview whenever amount or counterpartyId changes
+    if (field === 'amount' || field === 'counterpartyId') {
+      const newAmount = field === 'amount' ? value : form.amount;
+      const newCounterpartyId = field === 'counterpartyId' ? value : form.counterpartyId;
+      const newRisk = calculateRiskScore(newAmount, newCounterpartyId);
+      setRiskPreview(newRisk);
     }
   };
 
@@ -228,6 +263,29 @@ const CreateTransaction = () => {
               className="card-fintech"
             >
               <h3 className="text-lg font-semibold text-foreground mb-4">Risk Assessment</h3>
+              <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-foreground">Risk Score</span>
+                  <span className={`text-2xl font-bold ${
+                    riskPreview.riskScoreNumeric > 0.75 ? 'text-destructive' :
+                    riskPreview.riskScoreNumeric > 0.4 ? 'text-yellow-600' :
+                    'text-green-600'
+                  }`}>
+                    {(riskPreview.riskScoreNumeric).toFixed(2)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-2">Risk Score Range: 0 (Low Risk) to 1 (High Risk)</p>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-300 ${
+                      riskPreview.riskScoreNumeric > 0.75 ? 'bg-destructive' :
+                      riskPreview.riskScoreNumeric > 0.4 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${riskPreview.riskScoreNumeric * 100}%` }}
+                  />
+                </div>
+              </div>
               <div className="mb-4">
                 <RiskIndicator
                   level={riskPreview.level}
@@ -381,13 +439,36 @@ const CreateTransaction = () => {
           </div>
 
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2">Risk Preview</p>
-            <RiskIndicator
-              level={riskPreview.level}
-              score={riskPreview.score}
-              reason={riskPreview.factors.length > 0 ? riskPreview.factors[0] : undefined}
-              showTooltip={false}
-            />
+            <p className="text-xs font-medium text-muted-foreground mb-2">Risk Assessment</p>
+            <div className="card-fintech p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-foreground font-medium">Risk Score</span>
+                <span className={`text-lg font-bold ${
+                  riskPreview.riskScoreNumeric > 0.75 ? 'text-destructive' :
+                  riskPreview.riskScoreNumeric > 0.4 ? 'text-yellow-600' :
+                  'text-green-600'
+                }`}>
+                  {(riskPreview.riskScoreNumeric).toFixed(2)}
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div 
+                  className={`h-full transition-all duration-300 ${
+                    riskPreview.riskScoreNumeric > 0.75 ? 'bg-destructive' :
+                    riskPreview.riskScoreNumeric > 0.4 ? 'bg-yellow-500' :
+                    'bg-green-500'
+                  }`}
+                  style={{ width: `${riskPreview.riskScoreNumeric * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Range: 0 (Low) to 1 (High)</p>
+              <RiskIndicator
+                level={riskPreview.level}
+                score={riskPreview.score}
+                reason={riskPreview.factors.length > 0 ? riskPreview.factors[0] : 'Standard transaction'}
+                showTooltip={false}
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 pt-6 border-t border-border">
