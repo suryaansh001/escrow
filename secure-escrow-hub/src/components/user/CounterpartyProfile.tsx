@@ -74,8 +74,8 @@ export const CounterpartyProfile = ({
       <div className="grid sm:grid-cols-2 gap-4">
         <ScoreCard
           label="Reliability Score"
-          value={reliabilityScore}
-          unit="/100"
+          value={(reliabilityScore/100).toFixed(4)}
+          unit="/1"
           status={riskLevel === 'low' ? 'good' : riskLevel === 'medium' ? 'warning' : 'critical'}
           icon={<TrendingUp className="h-5 w-5" />}
         />
@@ -83,7 +83,7 @@ export const CounterpartyProfile = ({
           <p className="text-sm font-medium text-muted-foreground mb-2">Risk Assessment</p>
           <RiskIndicator
             level={riskLevel}
-            score={100 - reliabilityScore}
+            score={parseFloat(((100 - reliabilityScore)/100).toFixed(4))}
             reason={
               riskLevel === 'low'
                 ? 'High reliability and low risk profile'

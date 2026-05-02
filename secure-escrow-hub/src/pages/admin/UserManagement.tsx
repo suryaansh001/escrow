@@ -50,8 +50,8 @@ const UserManagement = () => {
                         {user.kycStatus}
                       </Badge>
                     </TableCell>
-                    <TableCell>{user.reliabilityScore}/100</TableCell>
-                    <TableCell>{user.trustScore}/100</TableCell>
+                    <TableCell>{(user.reliabilityScore/100).toFixed(4)}/1</TableCell>
+                    <TableCell>{(user.trustScore/100).toFixed(4)}/1</TableCell>
                     <TableCell>
                       {user.restricted ? (
                         <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">

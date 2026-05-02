@@ -189,7 +189,7 @@ const AdminDashboard = () => {
                     </TableCell>
                     <TableCell className="font-semibold">₹{txn.amount.toLocaleString()}</TableCell>
                     <TableCell>
-                      <span className="font-mono font-bold text-destructive">{txn.riskScore}/100</span>
+                      <span className="font-mono font-bold text-destructive">{(txn.riskScore/100).toFixed(4)}/1</span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{txn.risk.explanation}</TableCell>
                   </TableRow>

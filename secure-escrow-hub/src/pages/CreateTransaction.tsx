@@ -97,9 +97,9 @@ const CreateTransaction = () => {
       counterpartyRisk = (100 - reliabilityScore) / 100;
       
       if (reliabilityScore < 40) {
-        factors.push(`Counterparty low reliability (${reliabilityScore}/100)`);
+        factors.push(`Counterparty low reliability (${(reliabilityScore/100).toFixed(4)}/1)`);
       } else if (reliabilityScore < 70) {
-        factors.push(`Counterparty moderate reliability (${reliabilityScore}/100)`);
+        factors.push(`Counterparty moderate reliability (${(reliabilityScore/100).toFixed(4)}/1)`);
       }
     }
 
@@ -385,7 +385,7 @@ const CreateTransaction = () => {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Risk Score:</span>
-                          <span className="text-sm font-medium">{riskScore}/100</span>
+                          <span className="text-sm font-medium">{(riskScore/100).toFixed(4)}/1</span>
                         </div>
                         <RiskIndicator
                           level={riskLevel as 'low' | 'medium' | 'high'}

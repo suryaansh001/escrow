@@ -263,7 +263,7 @@ const FlaggedTransactions = () => {
                                         : selectedTxn.riskScore > 50
                                           ? 'medium'
                                           : 'low',
-                                    reason: `Risk score: ${selectedTxn.riskScore}/100`,
+                                    reason: `Risk score: ${(selectedTxn.riskScore/100).toFixed(4)}/1`,
                                   }}
                                 />
                               </div>
